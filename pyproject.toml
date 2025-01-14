@@ -7,7 +7,7 @@ name = "obp-accounting-sdk"
 description = "Python SDK for the OBP Accounting Service."
 authors = [
     {name = "Blue Brain Project, EPFL"},
-    {name = "Gianluca Ficarelli", email = "gianluca.ficarelli@epfl.ch"},
+    {name = "Open Brain Institute"},
 ]
 dependencies = [
     "httpx",
@@ -25,9 +25,9 @@ classifiers = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/BlueBrain/obp-accounting-sdk"
-Repository = "https://github.com/BlueBrain/obp-accounting-sdk.git"
-Tracker = "https://github.com/BlueBrain/obp-accounting-sdk/issues"
+Homepage = "https://github.com/openbraininstitute/accounting-sdk"
+Repository = "https://github.com/openbraininstitute/accounting-sdk.git"
+Tracker = "https://github.com/openbraininstitute/accounting-sdk/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
