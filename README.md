@@ -1,4 +1,4 @@
-# obp-accounting-sdk
+# OBP Accounting SDK
 
 [![Build status][build_status_badge]][build_status_target]
 [![License][license_badge]][license_target]
@@ -82,6 +82,8 @@ The development of this software was supported by funding to the Blue Brain Proj
 For license and authors, see [LICENSE](LICENSE.txt) and [AUTHORS](AUTHORS.txt) respectively.
 
 Copyright © 2024 Blue Brain Project/EPFL
+
+Copyright © 2025 Open Brain Institute
 
 
 [build_status_badge]: https://github.com/BlueBrain/obp-accounting-sdk/actions/workflows/run-tox.yml/badge.svg
