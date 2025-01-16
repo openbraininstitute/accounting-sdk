@@ -5,6 +5,7 @@ import os
 
 import httpx
 
+from obp_accounting_sdk._sync.longrun import SyncLongrunSession
 from obp_accounting_sdk._sync.oneshot import NullOneshotSession, OneshotSession
 
 L = logging.getLogger(__name__)
@@ -50,3 +51,7 @@ class AccountingSessionFactory:
             errmsg = "The internal http client is not set"
             raise RuntimeError(errmsg)
         return OneshotSession(http_client=self._http_client, base_url=self._base_url, **kwargs)
+
+    def longrun_session(self, **kwargs) -> SyncLongrunSession:
+        """Return a new longrun session."""
+        return SyncLongrunSession(http_client=self._http_client, base_url=self._base_url, **kwargs)

@@ -3,6 +3,7 @@
 from enum import StrEnum, auto
 
 MAX_JOB_NAME_LENGTH = 255
+HEARTBEAT_INTERVAL = 30
 
 
 class HyphenStrEnum(StrEnum):
