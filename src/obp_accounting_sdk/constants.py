@@ -2,6 +2,8 @@
 
 from enum import StrEnum, auto
 
+HEARTBEAT_INTERVAL = 30
+
 
 class HyphenStrEnum(StrEnum):
     """Enum where members are also (and must be) strings.

@@ -4,6 +4,7 @@ import os
 
 import httpx
 
+from obp_accounting_sdk._sync.longrun import SyncLongrunSession
 from obp_accounting_sdk._sync.oneshot import OneshotSession
 
 
@@ -26,3 +27,7 @@ class AccountingSessionFactory:
     def oneshot_session(self, **kwargs) -> OneshotSession:
         """Return a new oneshot session."""
         return OneshotSession(http_client=self._http_client, base_url=self._base_url, **kwargs)
+
+    def longrun_session(self, **kwargs) -> SyncLongrunSession:
+        """Return a new longrun session."""
+        return SyncLongrunSession(http_client=self._http_client, base_url=self._base_url, **kwargs)
