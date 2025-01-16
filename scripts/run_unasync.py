@@ -27,6 +27,7 @@ def main() -> None:
     additional_replacements = {
         "AsyncClient": "Client",
         "AsyncOneshotSession": "OneshotSession",
+        "AsyncNullOneshotSession": "NullOneshotSession",
         "AsyncAccountingSessionFactory": "AccountingSessionFactory",
         "_async": "_sync",
         "aclosing": "closing",

@@ -152,3 +152,23 @@ class AsyncOneshotSession:
                 await self._cancel_reservation()
             except AccountingCancellationError as ex:
                 L.warning("Error while cancelling the reservation: %r", ex)
+
+
+class AsyncNullOneshotSession:
+    """Null session that can be used to do nothing."""
+
+    def __init__(self) -> None:
+        """Initialization."""
+        self.count = 0
+
+    async def __aenter__(self) -> Self:
+        """Initialize when entering the context manager."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Cleanup when exiting the context manager."""

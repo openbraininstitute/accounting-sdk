@@ -297,3 +297,8 @@ async def test_oneshot_session_with_application_error_and_cancellation_timeout(h
         f"Error in request DELETE {BASE_URL}/reservation/oneshot/{JOB_ID}",
         caplog.text,
     )
+
+
+async def test_oneshot_session_null_as_context_manager():
+    async with test_module.AsyncNullOneshotSession() as session:
+        assert session.count == 0
