@@ -44,6 +44,10 @@ In the example above:
 - The value of `estimated_count` is used for reservation, and it's used also for usage unless a new value is assigned to `acc_session.count`.
 
 
+> [!TIP]
+> The integration with the Accounting service can be disabled by setting the env variable `ACCOUNTING_DISABLED=1` before initializing the `AsyncAccountingSessionFactory` or `AccountingSessionFactory` object.
+
+
 ## Example
 
 See the [Demo app](demo/app) for a working example integrated in a simple FastAPI app.
