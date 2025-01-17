@@ -44,12 +44,11 @@ async def test_factory_with_env_var_accounting_disabled_invalid(monkeypatch):
     monkeypatch.setenv("ACCOUNTING_DISABLED", "1")
     async with aclosing(test_module.AsyncAccountingSessionFactory()) as session_factory:
         assert session_factory._disabled is True
-        with monkeypatch.context() as monkeycontext:
-            # enforce an invalid internal status, although this should never happen
-            monkeycontext.setattr(session_factory, "_disabled", False)
-            with pytest.raises(RuntimeError, match="The internal http client is not set"):
-                session_factory.oneshot_session(
-                    subtype=ServiceSubtype.ML_LLM,
-                    proj_id=PROJ_ID,
-                    count=10,
-                )
+        # enforce an invalid internal status, although this should never happen
+        monkeypatch.setattr(session_factory, "_disabled", False)
+        with pytest.raises(RuntimeError, match="The internal http client is not set"):
+            session_factory.oneshot_session(
+                subtype=ServiceSubtype.ML_LLM,
+                proj_id=PROJ_ID,
+                count=10,
+            )
