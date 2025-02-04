@@ -9,6 +9,7 @@ from obp_accounting_sdk.constants import ServiceSubtype
 
 BASE_URL = "http://test"
 PROJ_ID = "00000000-0000-0000-0000-000000000001"
+USER_ID = "00000000-0000-0000-0000-000000000002"
 
 
 async def test_factory_with_aclosing(monkeypatch):
@@ -17,6 +18,7 @@ async def test_factory_with_aclosing(monkeypatch):
         oneshot_session = session_factory.oneshot_session(
             subtype=ServiceSubtype.ML_LLM,
             proj_id=PROJ_ID,
+            user_id=USER_ID,
             count=10,
         )
         assert isinstance(oneshot_session, AsyncOneshotSession)
@@ -35,6 +37,7 @@ async def test_factory_with_env_var_accounting_disabled(monkeypatch):
         oneshot_session = session_factory.oneshot_session(
             subtype=ServiceSubtype.ML_LLM,
             proj_id=PROJ_ID,
+            user_id=USER_ID,
             count=10,
         )
         assert isinstance(oneshot_session, AsyncNullOneshotSession)
@@ -50,5 +53,6 @@ async def test_factory_with_env_var_accounting_disabled_invalid(monkeypatch):
             session_factory.oneshot_session(
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             )

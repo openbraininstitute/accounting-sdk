@@ -29,6 +29,7 @@ class OneshotSession:
         base_url: str,
         subtype: ServiceSubtype | str,
         proj_id: UUID | str,
+        user_id: UUID | str,
         count: int,
     ) -> None:
         """Initialization."""
@@ -37,6 +38,7 @@ class OneshotSession:
         self._service_type: ServiceType = ServiceType.ONESHOT
         self._service_subtype: ServiceSubtype = ServiceSubtype(subtype)
         self._proj_id: UUID = UUID(str(proj_id))
+        self._user_id: UUID = UUID(str(user_id))
         self._job_id: UUID | None = None
         self._count = self.count = count
 
@@ -65,6 +67,7 @@ class OneshotSession:
             "type": self._service_type,
             "subtype": self._service_subtype,
             "proj_id": str(self._proj_id),
+            "user_id": str(self._user_id),
             "count": str(self.count),
         }
         try:
