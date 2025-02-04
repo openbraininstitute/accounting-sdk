@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.1.4
+
+- Provide user_id to accounting service when making a reservation.
+
 ## Version 0.1.3
 
 - Allow to disable the accounting integration by setting the env variable `ACCOUNTING_DISABLED=1`.
