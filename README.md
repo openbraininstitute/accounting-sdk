@@ -10,7 +10,6 @@
 
 Python SDK for the OBP Accounting Service.
 
-
 ## Usage
 
 The API provides the following main classes to be used asynchronously:
@@ -28,10 +27,12 @@ The factory class must be instantiated only once, and a new session can be obtai
 ```python
 subtype: ServiceSubtype = ...
 proj_id: UUID = ...
+user_id: UUID = ...
 estimated_count: int = ...
 async with accounting_session_factory.oneshot_session(
     subtype=subtype,
     proj_id=proj_id,
+    user_id=user_id,
     count=estimated_count,
 ) as acc_session:
     # actual logic
@@ -39,14 +40,13 @@ async with accounting_session_factory.oneshot_session(
 ```
 
 In the example above:
+
 - The reservation with the accounting service happens when entering the context manager.
 - The usage is sent to the accounting service when exiting the context manager, unless an exception is raised, because in this case we suppose that the actual business logic to be charged didn't get executed.
 - The value of `estimated_count` is used for reservation, and it's used also for usage unless a new value is assigned to `acc_session.count`.
 
-
 > [!TIP]
 > The integration with the Accounting service can be disabled by setting the env variable `ACCOUNTING_DISABLED=1` before initializing the `AsyncAccountingSessionFactory` or `AccountingSessionFactory` object.
-
 
 ## Example
 
@@ -60,26 +60,25 @@ export UVICORN_PORT=8000
 tox -e demo
 ```
 
-and call the endpoint after setting a valid project-id with:
+and call the endpoint after setting a valid project-id and user-id with:
 
 ```bash
 export PROJECT_ID=8eb248a8-672c-4158-9365-b95286cba796
+export USER_ID=7ee00c6c-3f92-4ac0-b49e-9f690f76826e
 curl -vs "http://127.0.0.1:$UVICORN_PORT/query" \
 -H "content-type: application/json" \
 -H "project-id: $PROJECT_ID" \
+-H "user-id: $USER_ID" \
 --data-binary @- <<EOF
 {"input_text": "my query"}
 EOF
 ```
 
-Contribution Guidelines
------------------------
+## Contribution Guidelines
 
 See [CONTRIBUTING](CONTRIBUTING.md).
 
-
-Acknowledgment
---------------
+## Acknowledgment
 
 The development of this software was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology.
 
@@ -88,7 +87,6 @@ For license and authors, see [LICENSE](LICENSE.txt) and [AUTHORS](AUTHORS.txt) r
 Copyright © 2024 Blue Brain Project/EPFL
 
 Copyright © 2025 Open Brain Institute
-
 
 [build_status_badge]: https://github.com/BlueBrain/obp-accounting-sdk/actions/workflows/run-tox.yml/badge.svg
 [build_status_target]: https://github.com/BlueBrain/obp-accounting-sdk/actions
