@@ -14,6 +14,7 @@ from obp_accounting_sdk.errors import (
 BASE_URL = "http://test"
 PROJ_ID = "00000000-0000-0000-0000-000000000001"
 JOB_ID = "00000000-0000-0000-0000-000000000002"
+USER_ID = "00000000-0000-0000-0000-000000000003"
 
 
 def test_oneshot_session_success(httpx_mock):
@@ -34,6 +35,7 @@ def test_oneshot_session_success(httpx_mock):
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
             proj_id=PROJ_ID,
+            user_id=USER_ID,
             count=10,
         ) as session:
             assert session.count == 10
@@ -58,6 +60,7 @@ def test_oneshot_session_with_insufficient_funds(httpx_mock):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 pass
@@ -76,6 +79,7 @@ def test_oneshot_session_with_payload_error(httpx_mock):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 pass
@@ -97,6 +101,7 @@ def test_oneshot_session_with_reservation_timeout(httpx_mock):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 pass
@@ -118,6 +123,7 @@ def test_oneshot_session_with_reservation_error(httpx_mock):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 pass
@@ -144,6 +150,7 @@ def test_oneshot_session_with_usage_timeout(httpx_mock):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 pass
@@ -170,6 +177,7 @@ def test_oneshot_session_with_usage_error(httpx_mock):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 pass
@@ -187,6 +195,7 @@ def test_oneshot_session_improperly_used(httpx_mock):
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
             proj_id=PROJ_ID,
+            user_id=USER_ID,
             count=10,
         )
         with pytest.raises(
@@ -222,6 +231,7 @@ def test_oneshot_session_with_application_error(httpx_mock, caplog):
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 func()
@@ -252,6 +262,7 @@ def test_oneshot_session_with_application_error_and_cancellation_error(httpx_moc
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 func()
@@ -287,6 +298,7 @@ def test_oneshot_session_with_application_error_and_cancellation_timeout(httpx_m
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
                 proj_id=PROJ_ID,
+                user_id=USER_ID,
                 count=10,
             ):
                 func()
