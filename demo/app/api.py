@@ -69,12 +69,14 @@ async def query(
     query_request: QueryRequest,
     accounting_session_factory: AccountingSessionFactoryDep,
     project_id: Annotated[UUID | None, Header()],
+    user_id: Annotated[UUID | None, Header()],
 ) -> QueryResponse:
     """Execute a query."""
     estimated_count = len(query_request.input_text) * 3
     async with accounting_session_factory.oneshot_session(
         subtype=ServiceSubtype.ML_LLM,
         proj_id=project_id,
+        user_id=user_id,
         count=estimated_count,
     ) as acc_session:
         output_text = await run_query(query_request.input_text)
