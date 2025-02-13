@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.1.5
+
+- Add service subtype for synaptome simulations.
+
 ## Version 0.1.4
 
 - Provide user_id to accounting service when making a reservation.
