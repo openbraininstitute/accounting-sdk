@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.1.6
+
+- add service subtypes for single cell and synaptome model builds.
+
 ## Version 0.1.5
 
 - Add service subtype for synaptome simulations.
