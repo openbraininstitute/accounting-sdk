@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from obp_accounting_sdk._async import oneshot as test_module
-from obp_accounting_sdk.constants import ServiceSubtype
+from obp_accounting_sdk.constants import MAX_JOB_NAME_LENGTH, ServiceSubtype
 from obp_accounting_sdk.errors import (
     AccountingReservationError,
     AccountingUsageError,
@@ -45,6 +45,40 @@ async def test_oneshot_session_success(httpx_mock):
                 session.count = -10
             session.count = 20
             assert session.count == 20
+
+            assert session.name is None
+            name_value_error = f"Job name must be a string with max length {MAX_JOB_NAME_LENGTH}"
+            with pytest.raises(ValueError, match=name_value_error):
+                session.name = None
+            with pytest.raises(ValueError, match=name_value_error):
+                session.name = 123
+            session.name = "test job"
+            assert session.name == "test job"
+
+
+async def test_oneshot_session_with_name(httpx_mock):
+    httpx_mock.add_response(
+        json={"message": "", "data": {"job_id": JOB_ID}},
+        method="POST",
+        url=f"{BASE_URL}/reservation/oneshot",
+    )
+    httpx_mock.add_response(
+        json={"message": "", "data": None},
+        method="POST",
+        url=f"{BASE_URL}/usage/oneshot",
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        async with test_module.AsyncOneshotSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            name="test job",
+            count=10,
+        ) as session:
+            assert session.name == "test job"
 
 
 async def test_oneshot_session_with_insufficient_funds(httpx_mock):

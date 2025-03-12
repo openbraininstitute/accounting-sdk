@@ -24,6 +24,19 @@ def test_factory_with_aclosing(monkeypatch):
         assert isinstance(oneshot_session, OneshotSession)
 
 
+def test_factory_with_name(monkeypatch):
+    monkeypatch.setenv("ACCOUNTING_BASE_URL", BASE_URL)
+    with closing(test_module.AccountingSessionFactory()) as session_factory:
+        oneshot_session = session_factory.oneshot_session(
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            name="test job",
+            count=10,
+        )
+        assert isinstance(oneshot_session, OneshotSession)
+
+
 def test_factory_without_env_var_accounting_base_url(monkeypatch):
     monkeypatch.delenv("ACCOUNTING_BASE_URL", raising=False)
     with pytest.raises(RuntimeError, match="ACCOUNTING_BASE_URL must be set"):

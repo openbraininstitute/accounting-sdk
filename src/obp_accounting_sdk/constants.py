@@ -2,6 +2,8 @@
 
 from enum import StrEnum, auto
 
+MAX_JOB_NAME_LENGTH = 255
+
 
 class HyphenStrEnum(StrEnum):
     """Enum where members are also (and must be) strings.

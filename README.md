@@ -28,15 +28,18 @@ The factory class must be instantiated only once, and a new session can be obtai
 subtype: ServiceSubtype = ...
 proj_id: UUID = ...
 user_id: UUID = ...
+name: str | None = ...
 estimated_count: int = ...
 async with accounting_session_factory.oneshot_session(
     subtype=subtype,
     proj_id=proj_id,
     user_id=user_id,
+    name=name,
     count=estimated_count,
 ) as acc_session:
     # actual logic
     acc_session.count = actual_count
+    acc_session.name = actual_name
 ```
 
 In the example above:
