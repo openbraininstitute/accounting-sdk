@@ -55,6 +55,10 @@ async def test_oneshot_session_success(httpx_mock):
             session.name = "test job"
             assert session.name == "test job"
 
+            # Overwrite existing name
+            session.name = "test job 2 updated"
+            assert session.name == "test job 2 updated"
+
 
 async def test_oneshot_session_with_name(httpx_mock):
     httpx_mock.add_response(
