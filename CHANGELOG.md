@@ -1,8 +1,12 @@
 # Changelog
 
+## Version 0.1.7
+
+- Add optional name property for job reservation / report.
+
 ## Version 0.1.6
 
-- add service subtypes for single cell and synaptome model builds.
+- Add service subtypes for single cell and synaptome model builds.
 
 ## Version 0.1.5
 
