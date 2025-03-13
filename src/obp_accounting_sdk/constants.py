@@ -33,7 +33,9 @@ class ServiceSubtype(HyphenStrEnum):
 
     STORAGE = auto()
     SINGLE_CELL_SIM = auto()
+    SINGLE_CELL_BUILD = auto()
     SYNAPTOME_SIM = auto()
+    SYNAPTOME_BUILD = auto()
     ML_RETRIEVAL = auto()
     ML_LLM = auto()
     ML_RAG = auto()
