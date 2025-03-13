@@ -8,7 +8,7 @@ from uuid import UUID
 
 import httpx
 
-from obp_accounting_sdk.constants import ServiceSubtype, ServiceType
+from obp_accounting_sdk.constants import MAX_JOB_NAME_LENGTH, ServiceSubtype, ServiceType
 from obp_accounting_sdk.errors import (
     AccountingCancellationError,
     AccountingReservationError,
@@ -31,6 +31,7 @@ class OneshotSession:
         proj_id: UUID | str,
         user_id: UUID | str,
         count: int,
+        name: str | None = None,
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -39,6 +40,7 @@ class OneshotSession:
         self._service_subtype: ServiceSubtype = ServiceSubtype(subtype)
         self._proj_id: UUID = UUID(str(proj_id))
         self._user_id: UUID = UUID(str(user_id))
+        self._name = name
         self._job_id: UUID | None = None
         self._count = self.count = count
 
@@ -57,6 +59,21 @@ class OneshotSession:
             L.info("Overriding previous count value %s with %s", self.count, value)
         self._count = value
 
+    @property
+    def name(self) -> str | None:
+        """Return the job name."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        """Set the job name."""
+        if not isinstance(value, str) or len(value) > MAX_JOB_NAME_LENGTH:
+            errmsg = f"Job name must be a string with max length {MAX_JOB_NAME_LENGTH}"
+            raise ValueError(errmsg)
+        if self.name is not None and self.name != value:
+            L.info("Overriding previous name value '%s' with '%s'", self.name, value)
+        self._name = value
+
     def _make_reservation(self) -> None:
         """Make a new reservation."""
         if self._job_id is not None:
@@ -68,6 +85,7 @@ class OneshotSession:
             "subtype": self._service_subtype,
             "proj_id": str(self._proj_id),
             "user_id": str(self._user_id),
+            "name": self.name,
             "count": str(self.count),
         }
         try:
@@ -120,6 +138,7 @@ class OneshotSession:
             "type": self._service_type,
             "subtype": self._service_subtype,
             "proj_id": str(self._proj_id),
+            "name": self.name,
             "count": str(self.count),
             "job_id": str(self._job_id),
             "timestamp": get_current_timestamp(),
