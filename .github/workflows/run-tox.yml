@@ -39,7 +39,7 @@ jobs:
         tox run -e ${{ matrix.tox-env }}
     - name: Upload to codecov
       if: ${{ matrix.codecov == 'codecov' }}
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
