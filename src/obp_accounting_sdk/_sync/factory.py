@@ -13,12 +13,12 @@ L = logging.getLogger(__name__)
 class AccountingSessionFactory:
     """Accounting Session Factory."""
 
-    def __init__(self, http_client_class: type[httpx.Client] | None = None) -> None:
+    def __init__(self, http_client_class: type[httpx.AsyncClient] | None = None, base_url: str | None = None, disabled: bool | None = None) -> None:
         """Initialization."""
         self._http_client = None
         self._http_client_class = http_client_class or httpx.Client
-        self._base_url = os.getenv("ACCOUNTING_BASE_URL", "")
-        self._disabled = os.getenv("ACCOUNTING_DISABLED", "") == "1"
+        self._base_url = os.getenv("ACCOUNTING_BASE_URL", "") if base_url is None else base_url
+        self._disabled = os.getenv("ACCOUNTING_DISABLED", "") == "1" if disabled is None else disabled
 
         if self._disabled:
             L.warning("Accounting integration is disabled")
