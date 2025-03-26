@@ -15,7 +15,7 @@ class AccountingSessionFactory:
 
     def __init__(
         self,
-        http_client_class: type[httpx.AsyncClient] | None = None,
+        http_client_class: type[httpx.Client] | None = None,
         *,
         base_url: str | None = None,
         disabled: bool | None = None,
