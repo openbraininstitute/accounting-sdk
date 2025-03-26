@@ -1,4 +1,5 @@
 from contextlib import aclosing
+from unittest.mock import Mock
 
 import pytest
 
@@ -69,3 +70,28 @@ async def test_factory_with_env_var_accounting_disabled_invalid(monkeypatch):
                 user_id=USER_ID,
                 count=10,
             )
+
+
+async def test_factory_constructor_base_url(monkeypatch):
+    fake_os = Mock()
+    monkeypatch.setattr("obp_accounting_sdk._async.factory.os", fake_os)
+
+    session_factory = test_module.AsyncAccountingSessionFactory(base_url="http://example.com")
+
+    assert session_factory._base_url == "http://example.com"
+    assert session_factory._disabled is False
+    assert fake_os.getenv.call_count == 1
+    fake_os.getenv.assert_called_with("ACCOUNTING_DISABLED", "")
+
+
+async def test_factory_constructor_base_url_and_disabled(monkeypatch):
+    fake_os = Mock()
+    monkeypatch.setattr("obp_accounting_sdk._async.factory.os", fake_os)
+
+    session_factory = test_module.AsyncAccountingSessionFactory(
+        base_url="http://example.com", disabled=True
+    )
+
+    assert session_factory._base_url == "http://example.com"
+    assert session_factory._disabled is True
+    assert fake_os.getenv.call_count == 0
