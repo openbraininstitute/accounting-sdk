@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.1.8
+
+- Add base_url and disabled to the (Async)AccountingSessionFactory constructor.
+
 ## Version 0.1.7
 
 - Add optional name property for job reservation / report.

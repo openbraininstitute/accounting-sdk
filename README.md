@@ -55,7 +55,7 @@ In the example above:
 
 See the [Demo app](demo/app) for a working example integrated in a simple FastAPI app.
 
-If you installed `tox`, you can set the required env variables and run the demo with:
+If you installed `tox`, and if you have a running instance of the Accounting service, you can set the required env variables and run the demo with:
 
 ```bash
 export ACCOUNTING_BASE_URL=http://127.0.0.1:8100
@@ -91,13 +91,13 @@ Copyright © 2024 Blue Brain Project/EPFL
 
 Copyright © 2025 Open Brain Institute
 
-[build_status_badge]: https://github.com/BlueBrain/obp-accounting-sdk/actions/workflows/run-tox.yml/badge.svg
-[build_status_target]: https://github.com/BlueBrain/obp-accounting-sdk/actions
+[build_status_badge]: https://github.com/openbraininstitute/accounting-sdk/actions/workflows/run-tox.yml/badge.svg
+[build_status_target]: https://github.com/openbraininstitute/accounting-sdk/actions
 [license_badge]: https://img.shields.io/pypi/l/obp-accounting-sdk
-[license_target]: https://github.com/BlueBrain/obp-accounting-sdk/blob/main/LICENSE.txt
-[coverage_badge]: https://codecov.io/github/BlueBrain/obp-accounting-sdk/coverage.svg?branch=main
-[coverage_target]: https://codecov.io/github/BlueBrain/obp-accounting-sdk?branch=main
-[codeql_badge]: https://github.com/BlueBrain/obp-accounting-sdk/actions/workflows/github-code-scanning/codeql/badge.svg
-[codeql_target]: https://github.com/BlueBrain/obp-accounting-sdk/actions/workflows/github-code-scanning/codeql
-[pypi_badge]: https://github.com/BlueBrain/obp-accounting-sdk/actions/workflows/publish-sdist.yml/badge.svg
+[license_target]: https://github.com/openbraininstitute/accounting-sdk/blob/main/LICENSE.txt
+[coverage_badge]: https://codecov.io/github/openbraininstitute/accounting-sdk/coverage.svg?branch=main
+[coverage_target]: https://codecov.io/github/openbraininstitute/accounting-sdk?branch=main
+[codeql_badge]: https://github.com/openbraininstitute/accounting-sdk/actions/workflows/github-code-scanning/codeql/badge.svg
+[codeql_target]: https://github.com/openbraininstitute/accounting-sdk/actions/workflows/github-code-scanning/codeql
+[pypi_badge]: https://github.com/openbraininstitute/accounting-sdk/actions/workflows/publish-sdist.yml/badge.svg
 [pypi_target]: https://pypi.org/project/obp-accounting-sdk/
