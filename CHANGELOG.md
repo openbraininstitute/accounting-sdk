@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.1.9
+
+- Add NOTEBOOK subtype.
+
 ## Version 0.1.8
 
 - Add base_url and disabled to the (Async)AccountingSessionFactory constructor.
