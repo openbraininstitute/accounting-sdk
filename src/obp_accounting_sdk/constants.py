@@ -41,6 +41,7 @@ class ServiceSubtype(HyphenStrEnum):
     ML_RETRIEVAL = auto()
     ML_LLM = auto()
     ML_RAG = auto()
+    NOTEBOOK = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
