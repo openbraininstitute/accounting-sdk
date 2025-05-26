@@ -53,6 +53,7 @@ class AsyncLongrunSession:
         self._service_subtype: ServiceSubtype = ServiceSubtype(subtype)
         self._proj_id: UUID = UUID(str(proj_id))
         self._job_id: UUID | None = None
+        self._job_running: bool = False
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
@@ -110,7 +111,7 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingCancellationError(message=errmsg, http_status_code=status_code) from exc
 
-    async def _close(self) -> None:
+    async def _finish(self) -> None:
         """Send a session closure event to accounting."""
         if self._job_id is None:
             errmsg = "Cannot close session before making a successful reservation"
@@ -198,6 +199,7 @@ class AsyncLongrunSession:
         try:
             response = await self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
             response.raise_for_status()
+            self._job_running = True
         except httpx.RequestError as exc:
             errmsg = f"Error in request {exc.request.method} {exc.request.url}"
             raise AccountingUsageError(message=errmsg) from exc
@@ -229,11 +231,26 @@ class AsyncLongrunSession:
             raise RuntimeError(errmsg)
         self._heartbeat_sender_process.terminate()
         self._heartbeat_sender_process.join()
-        if exc_type is None:
-            await self._close()
-        else:
-            L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
+
+        if not self._job_running and exc_type:
             try:
                 await self._cancel_reservation()
             except AccountingCancellationError as ex:
                 L.warning("Error while cancelling the reservation: %r", ex)
+
+        elif not self._job_running and not exc_val:
+            errmsg = "Accounting session must be started before closing."
+            raise RuntimeError(errmsg)
+
+        elif self._job_running and exc_type:
+            # TODO: Consider refunding the user
+            try:
+                await self._finish()
+            except AccountingUsageError as ex:
+                L.error("Error while finishing the job: %r", ex)
+
+        else:
+            try:
+                await self._finish()
+            except AccountingUsageError as ex:
+                L.error("Error while finishing the job: %r", ex)
