@@ -1,6 +1,7 @@
 """Longrun session."""
 
 import logging
+import platform
 import signal
 import time
 from http import HTTPStatus
@@ -27,7 +28,7 @@ from obp_accounting_sdk.errors import (
 from obp_accounting_sdk.utils import get_current_timestamp
 
 if TYPE_CHECKING:
-    from multiprocessing.context import ForkProcess
+    from multiprocessing.process import BaseProcess
 
 L = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class SyncLongrunSession:
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
-        self._heartbeat_sender_process: ForkProcess | None = None
+        self._heartbeat_sender_process: BaseProcess | None = None
 
     @property
     def name(self) -> str | None:
@@ -228,7 +229,7 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        ctx = get_context("fork")
+        ctx = get_context("fork") if platform.system() != "Linux" else get_context()
 
         self._heartbeat_sender_process = ctx.Process(
             target=self._heartbeat_sender_loop,
