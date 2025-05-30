@@ -72,7 +72,7 @@ def test_factory_with_env_var_accounting_disabled_invalid(monkeypatch):
             )
 
 
-async def test_factory_constructor_base_url(monkeypatch):
+def test_factory_constructor_base_url(monkeypatch):
     fake_os = Mock()
     monkeypatch.setattr("obp_accounting_sdk._sync.factory.os", fake_os)
 
@@ -84,7 +84,7 @@ async def test_factory_constructor_base_url(monkeypatch):
     fake_os.getenv.assert_called_with("ACCOUNTING_DISABLED", "")
 
 
-async def test_factory_constructor_base_url_and_disabled(monkeypatch):
+def test_factory_constructor_base_url_and_disabled(monkeypatch):
     fake_os = Mock()
     monkeypatch.setattr("obp_accounting_sdk._sync.factory.os", fake_os)
 
