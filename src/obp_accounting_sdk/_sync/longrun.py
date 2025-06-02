@@ -274,7 +274,7 @@ class SyncLongrunSession:
 
         else:
             try:
-                L.error("Finishing the job")
+                L.debug("Finishing the job")
                 self._finish()
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
