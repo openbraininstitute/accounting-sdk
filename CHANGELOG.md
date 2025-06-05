@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.2.0
+
+- Add support for longrun jobs.
+
 ## Version 0.1.9
 
 - Add NOTEBOOK subtype.
