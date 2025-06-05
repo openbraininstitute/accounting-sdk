@@ -229,6 +229,8 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
+        # For some reason child process is hanging when using default spawn method on MacOS.
+        # TODO: investigate further and remove this workaround.
         ctx = get_context("fork") if platform.system() != "Linux" else get_context()
 
         self._heartbeat_sender_process = ctx.Process(
