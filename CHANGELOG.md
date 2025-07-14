@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.2.1
+
+- Add service subtype for small circuit simulations.
+
 ## Version 0.2.0
 
 - Add support for longrun jobs.
