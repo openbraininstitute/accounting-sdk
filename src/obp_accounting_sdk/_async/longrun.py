@@ -1,19 +1,14 @@
 """Longrun session."""
 
 import logging
-import platform
-import signal
-import time
 from http import HTTPStatus
-from multiprocessing import get_context
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 from uuid import UUID
 
 import httpx
 
 from obp_accounting_sdk.constants import (
-    HEARTBEAT_INTERVAL,
     MAX_JOB_NAME_LENGTH,
     LongrunStatus,
     ServiceSubtype,
@@ -25,10 +20,7 @@ from obp_accounting_sdk.errors import (
     AccountingUsageError,
     InsufficientFundsError,
 )
-from obp_accounting_sdk.utils import get_current_timestamp
-
-if TYPE_CHECKING:
-    from multiprocessing.process import BaseProcess
+from obp_accounting_sdk.utils import create_async_periodic_task_manager, get_current_timestamp
 
 L = logging.getLogger(__name__)
 
@@ -47,6 +39,7 @@ class AsyncLongrunSession:
         instance_type: str,
         duration: int,
         name: str | None = None,
+        job_id: UUID | None = None,
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -55,13 +48,13 @@ class AsyncLongrunSession:
         self._service_subtype: ServiceSubtype = ServiceSubtype(subtype)
         self._proj_id: UUID = UUID(str(proj_id))
         self._user_id: UUID = UUID(str(user_id))
-        self._job_id: UUID | None = None
+        self._job_id: UUID | None = job_id
         self._name = name
         self._job_running: bool = False
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
-        self._heartbeat_sender_process: BaseProcess | None = None
+        self._cancel_heartbeat_sender: Any | None = None
 
     @property
     def name(self) -> str | None:
@@ -78,7 +71,7 @@ class AsyncLongrunSession:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
         self._name = value
 
-    async def _make_reservation(self) -> None:
+    async def make_reservation(self) -> None:
         """Make a new reservation."""
         if self._job_id is not None:
             errmsg = "Cannot make a reservation more than once"
@@ -159,7 +152,7 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-    def _send_heartbeat(self, http_sync_client: httpx.Client) -> None:
+    async def _send_heartbeat(self) -> None:
         """Send heartbeat event to accounting."""
         if self._job_id is None:
             errmsg = "Cannot send heartbeat before making a successful reservation"
@@ -175,7 +168,7 @@ class AsyncLongrunSession:
             "timestamp": get_current_timestamp(),
         }
         try:
-            response = http_sync_client.post(f"{self._base_url}/usage/longrun", json=data)
+            response = await self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
             response.raise_for_status()
         except httpx.RequestError as exc:
             errmsg = f"Error in request {exc.request.method} {exc.request.url}"
@@ -184,24 +177,6 @@ class AsyncLongrunSession:
             status_code = exc.response.status_code
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
-
-    def _heartbeat_sender_loop(self) -> None:
-        """Periodically send a signal to the accounting service that the job is still alive."""
-        running = True
-
-        def signal_handler(_signum: int, _frame: Any) -> None:
-            nonlocal running
-            running = False
-
-        signal.signal(signal.SIGTERM, signal_handler)
-
-        with httpx.Client() as http_sync_client:
-            while running:
-                try:
-                    time.sleep(HEARTBEAT_INTERVAL)
-                    self._send_heartbeat(http_sync_client)
-                except RuntimeError as exc:
-                    L.error("Error in heartbeat sender: %s", exc)
 
     async def start(self) -> None:
         """Start accounting for the current job."""
@@ -229,32 +204,24 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        # For some reason child process is hanging when using default spawn method on MacOS.
-        # TODO: investigate further and remove this workaround.
-        ctx = get_context("fork") if platform.system() != "Linux" else get_context()
-
-        self._heartbeat_sender_process = ctx.Process(
-            target=self._heartbeat_sender_loop,
-            daemon=True,
-        )
-        self._heartbeat_sender_process.start()
+        self._cancel_heartbeat_sender = create_async_periodic_task_manager(self._send_heartbeat)
         self._job_running = True
 
     async def __aenter__(self) -> Self:
         """Initialize when entering the context manager."""
-        await self._make_reservation()
+        if self._job_id is None:
+            await self.make_reservation()
         return self
 
-    async def __aexit__(
+    async def finish(
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
-        if self._heartbeat_sender_process:
-            self._heartbeat_sender_process.terminate()
-            self._heartbeat_sender_process.join()
+        if self._cancel_heartbeat_sender:
+            self._cancel_heartbeat_sender()
 
         if not self._job_running and exc_type:
             L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
@@ -281,6 +248,14 @@ class AsyncLongrunSession:
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
 
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
+    ) -> None:
+        await self.finish(exc_type, exc_val, _exc_tb)
+
 
 class AsyncNullLongrunSession:
     """Null session that can be used to do nothing."""
@@ -295,9 +270,9 @@ class AsyncNullLongrunSession:
 
     async def __aexit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
 

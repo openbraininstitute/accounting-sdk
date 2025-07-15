@@ -274,9 +274,9 @@ def test_longrun_session_improperly_used(httpx_mock):
         )
         # with pytest.raises(RuntimeError, match="Cannot cancel a reservation without a job id"):
         #     await session._cancel_reservation()
-        session._make_reservation()
+        session.make_reservation()
         with pytest.raises(RuntimeError, match="Cannot make a reservation more than once"):
-            session._make_reservation()
+            session.make_reservation()
 
 
 def test_longrun_session_with_application_error(httpx_mock, caplog):
