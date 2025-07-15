@@ -217,7 +217,7 @@ class SyncLongrunSession:
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
         if self._cancel_heartbeat_sender:
@@ -252,9 +252,9 @@ class SyncLongrunSession:
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
-        self.finish(exc_type=exc_type, exc_val=exc_val, exc_tb=exc_tb)
+        self.finish(exc_type, exc_val, _exc_tb)
 
 
 class SyncNullLongrunSession:
@@ -270,9 +270,9 @@ class SyncNullLongrunSession:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
 
