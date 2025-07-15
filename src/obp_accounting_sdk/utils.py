@@ -2,13 +2,12 @@
 
 import asyncio
 import logging
-import platform
+import signal
+import threading
 import time
 from collections.abc import Callable, Coroutine
-from multiprocessing import get_context
+from multiprocessing import Process
 from typing import Any
-
-from obp_accounting_sdk.constants import HEARTBEAT_INTERVAL
 
 L = logging.getLogger(__name__)
 
@@ -40,9 +39,7 @@ def create_cancellable_sync_task(fn: Callable[[], None]) -> Callable[[], None]:
     Returns:
         A callable that terminates the process when called.
     """
-    ctx = get_context("fork") if platform.system() != "Linux" else get_context()
-
-    process = ctx.Process(
+    process = Process(
         target=fn,
         daemon=True,
     )
@@ -55,21 +52,24 @@ def create_cancellable_sync_task(fn: Callable[[], None]) -> Callable[[], None]:
     return cancel
 
 
-def create_async_periodic_task_manager(callback: Callable[[], Any]) -> Callable[[], None]:
+def create_async_periodic_task_manager(
+    callback: Callable[[], Any], task_interval: int
+) -> Callable[[], None]:
     """Create a periodic task manager that periodically calls the callback.
 
     Args:
         callback: The callback function to call periodically.
+        task_interval: The interval in seconds between calls.
 
     Returns:
         A callable that cancels the heartbeat when called.
     """
 
-    async def heartbeat_loop() -> None:
+    async def start_loop() -> None:
         """Async heartbeat loop."""
         while True:
             try:
-                await asyncio.sleep(HEARTBEAT_INTERVAL)
+                await asyncio.sleep(task_interval)
                 await callback()
             except RuntimeError as exc:
                 L.error("Error in heartbeat sender: %s", exc)
@@ -77,24 +77,39 @@ def create_async_periodic_task_manager(callback: Callable[[], Any]) -> Callable[
                 L.debug("Heartbeat sender loop cancelled")
                 break
 
-    return create_cancellable_async_task(heartbeat_loop())
+    return create_cancellable_async_task(start_loop())
 
 
-def create_sync_periodic_task_manager(callback: Callable[[], None]) -> Callable[[], None]:
+def create_sync_periodic_task_manager(
+    callback: Callable[[], None], task_interval: int
+) -> Callable[[], None]:
     """Create a synchronous heartbeat manager that periodically calls the callback.
 
     Args:
         callback: The callback function to call periodically.
+        task_interval: The interval in seconds between calls.
 
     Returns:
         A callable that cancels the heartbeat when called.
     """
 
-    def heartbeat_loop() -> None:
+    def start_loop() -> None:
         """Sync heartbeat loop."""
-        while True:
+        shutdown_event = threading.Event()
+
+        def signal_handler(signum: int, _frame: Any) -> None:
+            L.debug("Received signal %d, shutting down heartbeat loop gracefully", signum)
+            shutdown_event.set()
+
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+
+        while not shutdown_event.is_set():
             try:
-                time.sleep(HEARTBEAT_INTERVAL)
+                # Wait for the interval or until shutdown is requested
+                if shutdown_event.wait(task_interval):
+                    break
                 callback()
             except RuntimeError as exc:
                 L.error("Error in heartbeat sender: %s", exc)
@@ -102,4 +117,6 @@ def create_sync_periodic_task_manager(callback: Callable[[], None]) -> Callable[
                 L.error("Error in heartbeat sender: %s", exc)
                 break
 
-    return create_cancellable_sync_task(heartbeat_loop)
+        L.debug("Heartbeat loop exiting gracefully")
+
+    return create_cancellable_sync_task(start_loop)

@@ -9,6 +9,7 @@ from uuid import UUID
 import httpx
 
 from obp_accounting_sdk.constants import (
+    HEARTBEAT_INTERVAL,
     MAX_JOB_NAME_LENGTH,
     LongrunStatus,
     ServiceSubtype,
@@ -204,7 +205,9 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        self._cancel_heartbeat_sender = create_async_periodic_task_manager(self._send_heartbeat)
+        self._cancel_heartbeat_sender = create_async_periodic_task_manager(
+            self._send_heartbeat, HEARTBEAT_INTERVAL
+        )
         self._job_running = True
 
     async def __aenter__(self) -> Self:
@@ -215,9 +218,9 @@ class AsyncLongrunSession:
 
     async def finish(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        _exc_tb: TracebackType | None,
+        exc_type: type[BaseException] | None = None,
+        exc_val: BaseException | None = None,
+        _exc_tb: TracebackType | None = None,
     ) -> None:
         """Cleanup when exiting the context manager."""
         if self._cancel_heartbeat_sender:
