@@ -2,11 +2,12 @@
 
 import asyncio
 import logging
+import platform
 import signal
 import threading
 import time
 from collections.abc import Callable, Coroutine
-from multiprocessing import Process
+from multiprocessing import get_context
 from typing import Any
 
 L = logging.getLogger(__name__)
@@ -39,7 +40,11 @@ def create_cancellable_sync_task(fn: Callable[[], None]) -> Callable[[], None]:
     Returns:
         A callable that terminates the process when called.
     """
-    process = Process(
+    # For some reason child process is hanging when using default spawn method on MacOS.
+    # TODO: investigate further and remove this workaround.
+    ctx = get_context("fork") if platform.system() != "Linux" else get_context()
+
+    process = ctx.Process(
         target=fn,
         daemon=True,
     )
@@ -113,7 +118,7 @@ def create_sync_periodic_task_manager(
                 callback()
             except RuntimeError as exc:
                 L.error("Error in callback: %s", exc)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 L.error("Error in callback: %s", exc)
                 break
 
