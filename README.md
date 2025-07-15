@@ -48,7 +48,7 @@ In the example above:
 - The usage is sent to the accounting service when exiting the context manager, unless an exception is raised, because in this case we suppose that the actual business logic to be charged didn't get executed.
 - The value of `estimated_count` is used for reservation, and it's used also for usage unless a new value is assigned to `acc_session.count`.
 
-Longrun session can be used without context manager:
+Accounting session can be also used without the context manager:
 
 ```python
 subtype: ServiceSubtype = ...
@@ -70,7 +70,7 @@ acc_session = accounting_session_factory.longrun_session(
 )
 
 await acc_session.make_reservation()
-await acc_session.start()
+await acc_session.start() # start method is required only for longrun sessions.
 
 # Actual logic
 
