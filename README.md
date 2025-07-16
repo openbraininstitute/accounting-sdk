@@ -48,6 +48,35 @@ In the example above:
 - The usage is sent to the accounting service when exiting the context manager, unless an exception is raised, because in this case we suppose that the actual business logic to be charged didn't get executed.
 - The value of `estimated_count` is used for reservation, and it's used also for usage unless a new value is assigned to `acc_session.count`.
 
+Accounting session can be also used without the context manager:
+
+```python
+subtype: ServiceSubtype = ...
+proj_id: UUID = ...
+user_id: UUID = ...
+name: str | None = ...
+estimated_instances: int = ...
+instance_type: str = ...
+instances: int = ...
+duration: int = ...
+acc_session = accounting_session_factory.longrun_session(
+    subtype=subtype,
+    proj_id=proj_id,
+    user_id=user_id,
+    name=name,
+    instance_type="FARGATE",
+    instances=1,
+    duration=5,
+)
+
+await acc_session.make_reservation()
+await acc_session.start() # start method is required only for longrun sessions.
+
+# Actual logic
+
+await acc_session.finish()
+```
+
 > [!TIP]
 > The integration with the Accounting service can be disabled by setting the env variable `ACCOUNTING_DISABLED=1` before initializing the `AsyncAccountingSessionFactory` or `AccountingSessionFactory` object.
 

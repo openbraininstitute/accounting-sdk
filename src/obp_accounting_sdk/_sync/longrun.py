@@ -1,13 +1,9 @@
 """Longrun session."""
 
 import logging
-import platform
-import signal
-import time
 from http import HTTPStatus
-from multiprocessing import get_context
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 from uuid import UUID
 
 import httpx
@@ -25,10 +21,7 @@ from obp_accounting_sdk.errors import (
     AccountingUsageError,
     InsufficientFundsError,
 )
-from obp_accounting_sdk.utils import get_current_timestamp
-
-if TYPE_CHECKING:
-    from multiprocessing.process import BaseProcess
+from obp_accounting_sdk.utils import create_sync_periodic_task_manager, get_current_timestamp
 
 L = logging.getLogger(__name__)
 
@@ -47,6 +40,7 @@ class SyncLongrunSession:
         instance_type: str,
         duration: int,
         name: str | None = None,
+        job_id: UUID | None = None,
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -55,13 +49,13 @@ class SyncLongrunSession:
         self._service_subtype: ServiceSubtype = ServiceSubtype(subtype)
         self._proj_id: UUID = UUID(str(proj_id))
         self._user_id: UUID = UUID(str(user_id))
-        self._job_id: UUID | None = None
+        self._job_id: UUID | None = job_id
         self._name = name
         self._job_running: bool = False
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
-        self._heartbeat_sender_process: BaseProcess | None = None
+        self._cancel_heartbeat_sender: Any | None = None
 
     @property
     def name(self) -> str | None:
@@ -78,7 +72,7 @@ class SyncLongrunSession:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
         self._name = value
 
-    def _make_reservation(self) -> None:
+    def make_reservation(self) -> None:
         """Make a new reservation."""
         if self._job_id is not None:
             errmsg = "Cannot make a reservation more than once"
@@ -113,6 +107,37 @@ class SyncLongrunSession:
         except Exception as exc:
             errmsg = "Error while parsing the response"
             raise AccountingReservationError(message=errmsg) from exc
+
+    def start(self) -> None:
+        """Start accounting for the current job."""
+        if self._job_id is None:
+            errmsg = "Cannot send session before making a successful reservation"
+            raise RuntimeError(errmsg)
+        data = {
+            "type": self._service_type,
+            "subtype": self._service_subtype,
+            "job_id": str(self._job_id),
+            "proj_id": str(self._proj_id),
+            "status": LongrunStatus.STARTED,
+            "instances": str(self._instances),
+            "instance_type": "fargate",
+            "timestamp": get_current_timestamp(),
+        }
+        try:
+            response = self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
+            response.raise_for_status()
+        except httpx.RequestError as exc:
+            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
+            raise AccountingUsageError(message=errmsg) from exc
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
+            raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
+
+        self._cancel_heartbeat_sender = create_sync_periodic_task_manager(
+            self._send_heartbeat, HEARTBEAT_INTERVAL
+        )
+        self._job_running = True
 
     def _cancel_reservation(self) -> None:
         """Cancel the reservation."""
@@ -159,7 +184,7 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-    def _send_heartbeat(self, http_sync_client: httpx.Client) -> None:
+    def _send_heartbeat(self) -> None:
         """Send heartbeat event to accounting."""
         if self._job_id is None:
             errmsg = "Cannot send heartbeat before making a successful reservation"
@@ -175,50 +200,6 @@ class SyncLongrunSession:
             "timestamp": get_current_timestamp(),
         }
         try:
-            response = http_sync_client.post(f"{self._base_url}/usage/longrun", json=data)
-            response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingUsageError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
-
-    def _heartbeat_sender_loop(self) -> None:
-        """Periodically send a signal to the accounting service that the job is still alive."""
-        running = True
-
-        def signal_handler(_signum: int, _frame: Any) -> None:
-            nonlocal running
-            running = False
-
-        signal.signal(signal.SIGTERM, signal_handler)
-
-        with httpx.Client() as http_sync_client:
-            while running:
-                try:
-                    time.sleep(HEARTBEAT_INTERVAL)
-                    self._send_heartbeat(http_sync_client)
-                except RuntimeError as exc:
-                    L.error("Error in heartbeat sender: %s", exc)
-
-    def start(self) -> None:
-        """Start accounting for the current job."""
-        if self._job_id is None:
-            errmsg = "Cannot send session before making a successful reservation"
-            raise RuntimeError(errmsg)
-        data = {
-            "type": self._service_type,
-            "subtype": self._service_subtype,
-            "job_id": str(self._job_id),
-            "proj_id": str(self._proj_id),
-            "status": LongrunStatus.STARTED,
-            "instances": str(self._instances),
-            "instance_type": "fargate",
-            "timestamp": get_current_timestamp(),
-        }
-        try:
             response = self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
             response.raise_for_status()
         except httpx.RequestError as exc:
@@ -229,32 +210,21 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        # For some reason child process is hanging when using default spawn method on MacOS.
-        # TODO: investigate further and remove this workaround.
-        ctx = get_context("fork") if platform.system() != "Linux" else get_context()
-
-        self._heartbeat_sender_process = ctx.Process(
-            target=self._heartbeat_sender_loop,
-            daemon=True,
-        )
-        self._heartbeat_sender_process.start()
-        self._job_running = True
-
     def __enter__(self) -> Self:
         """Initialize when entering the context manager."""
-        self._make_reservation()
+        if self._job_id is None:
+            self.make_reservation()
         return self
 
-    def __exit__(
+    def finish(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        exc_type: type[BaseException] | None = None,
+        exc_val: BaseException | None = None,
+        _exc_tb: TracebackType | None = None,
     ) -> None:
         """Cleanup when exiting the context manager."""
-        if self._heartbeat_sender_process:
-            self._heartbeat_sender_process.terminate()
-            self._heartbeat_sender_process.join()
+        if self._cancel_heartbeat_sender:
+            self._cancel_heartbeat_sender()
 
         if not self._job_running and exc_type:
             L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
@@ -281,6 +251,14 @@ class SyncLongrunSession:
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
 
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
+    ) -> None:
+        self.finish(exc_type, exc_val, _exc_tb)
+
 
 class SyncNullLongrunSession:
     """Null session that can be used to do nothing."""
@@ -295,11 +273,17 @@ class SyncNullLongrunSession:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
 
+    def make_reservation(self) -> None:
+        """Make a reservation for the current job."""
+
     def start(self) -> None:
         """Start accounting for the current job."""
+
+    def finish(self) -> None:
+        """Finalize accounting session for the current job."""

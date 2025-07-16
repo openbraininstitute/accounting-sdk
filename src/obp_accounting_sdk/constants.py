@@ -4,7 +4,8 @@ import os
 from enum import StrEnum, auto
 
 MAX_JOB_NAME_LENGTH = 255
-HEARTBEAT_INTERVAL = int(os.getenv("ACCOUNTING_HEARTBEAT_INTERVAL", "60"))
+
+HEARTBEAT_INTERVAL = int(os.getenv("ACCOUNTING_HEARTBEAT_INTERVAL", "30"))
 
 
 class HyphenStrEnum(StrEnum):
