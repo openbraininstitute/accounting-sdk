@@ -74,7 +74,7 @@ class OneshotSession:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
         self._name = value
 
-    def _make_reservation(self) -> None:
+    def make_reservation(self) -> None:
         """Make a new reservation."""
         if self._job_id is not None:
             errmsg = "Cannot make a reservation more than once"
@@ -108,6 +108,9 @@ class OneshotSession:
         except Exception as exc:
             errmsg = "Error while parsing the response"
             raise AccountingReservationError(message=errmsg) from exc
+
+    def start(self) -> None:
+        """Start accounting for the current job. Not used for Oneshot jobs."""
 
     def _cancel_reservation(self) -> None:
         """Cancel the reservation."""
@@ -154,9 +157,24 @@ class OneshotSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
+    def finish(
+        self,
+        exc_type: type[BaseException] | None = None,
+        _exc_val: BaseException | None = None,
+        _exc_tb: TracebackType | None = None,
+    ) -> None:
+        if exc_type is None:
+            self._send_usage()
+        else:
+            L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
+            try:
+                self._cancel_reservation()
+            except AccountingCancellationError as ex:
+                L.warning("Error while cancelling the reservation: %r", ex)
+
     def __enter__(self) -> Self:
         """Initialize when entering the context manager."""
-        self._make_reservation()
+        self.make_reservation()
         return self
 
     def __exit__(
@@ -166,14 +184,7 @@ class OneshotSession:
         exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
-        if exc_type is None:
-            self._send_usage()
-        else:
-            L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
-            try:
-                self._cancel_reservation()
-            except AccountingCancellationError as ex:
-                L.warning("Error while cancelling the reservation: %r", ex)
+        self.finish(exc_type, exc_val, exc_tb)
 
 
 class NullOneshotSession:
@@ -194,3 +205,12 @@ class NullOneshotSession:
         exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
+
+    def make_reservation(self) -> None:
+        """Make a reservation for the current job."""
+
+    def start(self) -> None:
+        """Start accounting for the current job."""
+
+    def finish(self) -> None:
+        """Finalize accounting session for the current job."""

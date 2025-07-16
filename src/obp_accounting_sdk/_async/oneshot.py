@@ -205,3 +205,12 @@ class AsyncNullOneshotSession:
         exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
+
+    async def make_reservation(self) -> None:
+        """Make a reservation for the current job."""
+
+    async def start(self) -> None:
+        """Start accounting for the current job."""
+
+    async def finish(self) -> None:
+        """Finalize accounting session for the current job."""
