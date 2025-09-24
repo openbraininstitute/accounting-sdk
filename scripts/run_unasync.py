@@ -29,6 +29,7 @@ def main() -> None:
         "AsyncOneshotSession": "OneshotSession",
         "AsyncNullOneshotSession": "NullOneshotSession",
         "AsyncAccountingSessionFactory": "AccountingSessionFactory",
+        "AsyncLongrunSessionWithHeartbeat": "LongrunSessionWithHeartbeat",
         "_async": "_sync",
         "aclosing": "closing",
         "aclose": "close",
