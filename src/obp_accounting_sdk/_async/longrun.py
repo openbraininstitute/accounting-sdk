@@ -120,7 +120,7 @@ class AsyncLongrunSession:
             "proj_id": str(self._proj_id),
             "status": LongrunStatus.STARTED,
             "instances": str(self._instances),
-            "instance_type": "fargate",
+            "instance_type": self._instance_type,
             "timestamp": get_current_timestamp(),
         }
         try:
