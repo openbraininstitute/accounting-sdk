@@ -34,6 +34,7 @@ def main() -> None:
         "aclose": "close",
         "Async": "Sync",
         "obp_accounting_sdk._async.factory.os": "obp_accounting_sdk._sync.factory.os",
+        "create_async_periodic_task_manager": "create_sync_periodic_task_manager",
     }
     _run(
         fromdir="src/obp_accounting_sdk/_async/",

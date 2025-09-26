@@ -74,7 +74,7 @@ class AsyncOneshotSession:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
         self._name = value
 
-    async def _make_reservation(self) -> None:
+    async def make_reservation(self) -> None:
         """Make a new reservation."""
         if self._job_id is not None:
             errmsg = "Cannot make a reservation more than once"
@@ -108,6 +108,9 @@ class AsyncOneshotSession:
         except Exception as exc:
             errmsg = "Error while parsing the response"
             raise AccountingReservationError(message=errmsg) from exc
+
+    async def start(self) -> None:
+        """Start accounting for the current job. Not used for Oneshot jobs."""
 
     async def _cancel_reservation(self) -> None:
         """Cancel the reservation."""
@@ -154,9 +157,24 @@ class AsyncOneshotSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
+    async def finish(
+        self,
+        exc_type: type[BaseException] | None = None,
+        _exc_val: BaseException | None = None,
+        _exc_tb: TracebackType | None = None,
+    ) -> None:
+        if exc_type is None:
+            await self._send_usage()
+        else:
+            L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
+            try:
+                await self._cancel_reservation()
+            except AccountingCancellationError as ex:
+                L.warning("Error while cancelling the reservation: %r", ex)
+
     async def __aenter__(self) -> Self:
         """Initialize when entering the context manager."""
-        await self._make_reservation()
+        await self.make_reservation()
         return self
 
     async def __aexit__(
@@ -166,14 +184,7 @@ class AsyncOneshotSession:
         exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
-        if exc_type is None:
-            await self._send_usage()
-        else:
-            L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
-            try:
-                await self._cancel_reservation()
-            except AccountingCancellationError as ex:
-                L.warning("Error while cancelling the reservation: %r", ex)
+        await self.finish(exc_type, exc_val, exc_tb)
 
 
 class AsyncNullOneshotSession:
@@ -194,3 +205,12 @@ class AsyncNullOneshotSession:
         exc_tb: TracebackType | None,
     ) -> None:
         """Cleanup when exiting the context manager."""
+
+    async def make_reservation(self) -> None:
+        """Make a reservation for the current job."""
+
+    async def start(self) -> None:
+        """Start accounting for the current job."""
+
+    async def finish(self) -> None:
+        """Finalize accounting session for the current job."""

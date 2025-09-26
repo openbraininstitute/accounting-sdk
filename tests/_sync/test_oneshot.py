@@ -242,9 +242,9 @@ def test_oneshot_session_improperly_used(httpx_mock):
             session._send_usage()
         with pytest.raises(RuntimeError, match="Cannot cancel a reservation without a job id"):
             session._cancel_reservation()
-        session._make_reservation()
+        session.make_reservation()
         with pytest.raises(RuntimeError, match="Cannot make a reservation more than once"):
-            session._make_reservation()
+            session.make_reservation()
 
 
 def test_oneshot_session_with_application_error(httpx_mock, caplog):

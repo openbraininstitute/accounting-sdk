@@ -14,3 +14,16 @@ class QueryResponse(BaseModel):
 
     input_text: str
     output_text: str
+
+
+class JobRequest(BaseModel):
+    """JobRequest."""
+
+    input_text: str
+
+
+class JobResponse(BaseModel):
+    """JobResponse."""
+
+    input_text: str
+    output_text: str
