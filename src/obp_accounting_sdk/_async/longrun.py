@@ -139,7 +139,7 @@ class AsyncLongrunSession:
         )
         self._job_running = True
 
-    async def _cancel_reservation(self) -> None:
+    async def cancel_reservation(self) -> None:
         """Cancel the reservation."""
         if self._job_id is None:
             errmsg = "Cannot cancel a reservation without a job id"
@@ -159,9 +159,6 @@ class AsyncLongrunSession:
 
     async def _finish(self) -> None:
         """Send a session closure event to accounting."""
-        if self._job_id is None:
-            errmsg = "Cannot close session before making a successful reservation"
-            raise RuntimeError(errmsg)
         data = {
             "type": self._service_type,
             "subtype": self._service_subtype,
@@ -226,10 +223,14 @@ class AsyncLongrunSession:
         if self._cancel_heartbeat_sender:
             self._cancel_heartbeat_sender()
 
+        if self._job_id is None and not exc_val:
+            errmsg = "Cannot close session before making a successful reservation"
+            raise RuntimeError(errmsg)
+
         if not self._job_running and exc_type:
             L.warning(f"Unhandled application error {exc_type.__name__}, cancelling reservation")
             try:
-                await self._cancel_reservation()
+                await self.cancel_reservation()
             except AccountingCancellationError as ex:
                 L.warning("Error while cancelling the reservation: %r", ex)
 
