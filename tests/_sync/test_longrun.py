@@ -17,8 +17,14 @@ PROJ_ID = "00000000-0000-0000-0000-000000000001"
 JOB_ID = "00000000-0000-0000-0000-000000000002"
 USER_ID = "00000000-0000-0000-0000-000000000003"
 
+classes = [
+    test_module.SyncLongrunSession,
+    test_module.SyncLongrunSessionWithHeartbeat,
+]
 
-def test_longrun_session_success(httpx_mock):
+
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_success(httpx_mock, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -38,7 +44,7 @@ def test_longrun_session_success(httpx_mock):
     )
 
     with httpx.Client() as http_client:
-        with test_module.SyncLongrunSession(
+        with cls(
             http_client=http_client,
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
@@ -48,6 +54,7 @@ def test_longrun_session_success(httpx_mock):
             instance_type="ml.g4dn.xlarge",
             duration=1000,
         ) as session:
+            assert str(session.job_id) == JOB_ID
             session.start()
 
             assert session.name is None
@@ -64,7 +71,8 @@ def test_longrun_session_success(httpx_mock):
             assert session.name == "test job 2 updated"
 
 
-def test_longrun_session_with_name(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_name(httpx_mock, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -84,7 +92,7 @@ def test_longrun_session_with_name(httpx_mock):
     )
 
     with httpx.Client() as http_client:
-        with test_module.SyncLongrunSession(
+        with cls(
             http_client=http_client,
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
@@ -100,7 +108,8 @@ def test_longrun_session_with_name(httpx_mock):
             session.start()
 
 
-def test_longrun_session_with_insufficient_funds(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_insufficient_funds(httpx_mock, cls):
     httpx_mock.add_response(
         status_code=402,
         method="POST",
@@ -108,7 +117,7 @@ def test_longrun_session_with_insufficient_funds(httpx_mock):
     )
     with httpx.Client() as http_client:
         with pytest.raises(InsufficientFundsError):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -121,7 +130,8 @@ def test_longrun_session_with_insufficient_funds(httpx_mock):
                 pass
 
 
-def test_longrun_session_with_payload_error(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_payload_error(httpx_mock, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {}},  # missing job_id
         method="POST",
@@ -129,7 +139,7 @@ def test_longrun_session_with_payload_error(httpx_mock):
     )
     with httpx.Client() as http_client:
         with pytest.raises(AccountingReservationError, match="Error while parsing the response"):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -142,7 +152,8 @@ def test_longrun_session_with_payload_error(httpx_mock):
                 pass
 
 
-def test_longrun_session_with_reservation_timeout(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_reservation_timeout(httpx_mock, cls):
     httpx_mock.add_exception(
         httpx.ReadTimeout("Unable to read within timeout"),
         method="POST",
@@ -153,7 +164,7 @@ def test_longrun_session_with_reservation_timeout(httpx_mock):
             AccountingReservationError,
             match=f"Error in request POST {BASE_URL}/reservation/longrun",
         ):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -166,7 +177,8 @@ def test_longrun_session_with_reservation_timeout(httpx_mock):
                 pass
 
 
-def test_longrun_session_with_reservation_error(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_reservation_error(httpx_mock, cls):
     httpx_mock.add_response(
         status_code=400,
         method="POST",
@@ -177,7 +189,7 @@ def test_longrun_session_with_reservation_error(httpx_mock):
             AccountingReservationError,
             match=f"Error in response to POST {BASE_URL}/reservation/longrun: 400",
         ):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -190,7 +202,8 @@ def test_longrun_session_with_reservation_error(httpx_mock):
                 pass
 
 
-def test_longrun_session_with_usage_timeout(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_usage_timeout(httpx_mock, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -210,7 +223,7 @@ def test_longrun_session_with_usage_timeout(httpx_mock):
             AccountingUsageError,
             match=f"Error in request POST {BASE_URL}/usage/longrun",
         ):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -223,7 +236,8 @@ def test_longrun_session_with_usage_timeout(httpx_mock):
                 session.start()
 
 
-def test_longrun_session_with_usage_error(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_usage_error(httpx_mock, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -243,7 +257,7 @@ def test_longrun_session_with_usage_error(httpx_mock):
             AccountingUsageError,
             match=f"Error in response to POST {BASE_URL}/usage/longrun: 400",
         ):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -256,14 +270,15 @@ def test_longrun_session_with_usage_error(httpx_mock):
                 session.start()
 
 
-def test_longrun_session_improperly_used(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_improperly_used(httpx_mock, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
         url=f"{BASE_URL}/reservation/longrun",
     )
     with httpx.Client() as http_client:
-        session = test_module.SyncLongrunSession(
+        session = cls(
             http_client=http_client,
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
@@ -280,7 +295,8 @@ def test_longrun_session_improperly_used(httpx_mock):
             session.make_reservation()
 
 
-def test_longrun_session_with_application_error(httpx_mock, caplog):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_application_error(httpx_mock, caplog, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -297,7 +313,7 @@ def test_longrun_session_with_application_error(httpx_mock, caplog):
 
     with httpx.Client() as http_client:
         with pytest.raises(RuntimeError, match="Application error"):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -312,7 +328,8 @@ def test_longrun_session_with_application_error(httpx_mock, caplog):
     assert "Error while cancelling the reservation" not in caplog.text
 
 
-def test_longrun_session_with_application_error_and_cancellation_error(httpx_mock, caplog):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_application_error_and_cancellation_error(httpx_mock, caplog, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -330,7 +347,7 @@ def test_longrun_session_with_application_error_and_cancellation_error(httpx_moc
 
     with httpx.Client() as http_client:
         with pytest.raises(Exception, match="Application error"):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -350,7 +367,8 @@ def test_longrun_session_with_application_error_and_cancellation_error(httpx_moc
     )
 
 
-def test_longrun_session_with_application_error_and_cancellation_timeout(httpx_mock, caplog):
+@pytest.mark.parametrize("cls", classes)
+def test_longrun_session_with_application_error_and_cancellation_timeout(httpx_mock, caplog, cls):
     httpx_mock.add_response(
         json={"message": "", "data": {"job_id": JOB_ID}},
         method="POST",
@@ -368,7 +386,7 @@ def test_longrun_session_with_application_error_and_cancellation_timeout(httpx_m
 
     with httpx.Client() as http_client:
         with pytest.raises(Exception, match="Application error"):
-            with test_module.SyncLongrunSession(
+            with cls(
                 http_client=http_client,
                 base_url=BASE_URL,
                 subtype=ServiceSubtype.ML_LLM,
@@ -393,9 +411,10 @@ def test_longrun_session_null_as_context_manager():
         assert session.instances == 0
 
 
-def test_errors(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_errors(httpx_mock, cls):
     with httpx.Client() as http_client:
-        session = test_module.SyncLongrunSession(
+        session = cls(
             http_client=http_client,
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
@@ -430,7 +449,37 @@ def test_errors(httpx_mock):
             session.finish()
 
 
-def test_finish_with_http_error(httpx_mock):
+@pytest.mark.parametrize("cls", classes)
+def test_errors_in_context_manager(httpx_mock, cls):
+    httpx_mock.add_response(
+        json={"message": "", "data": {"job_id": JOB_ID}},
+        method="POST",
+        url=f"{BASE_URL}/reservation/longrun",
+    )
+    httpx_mock.add_response(
+        json={"message": "", "data": None},
+        method="POST",
+        url=f"{BASE_URL}/usage/longrun",
+        is_reusable=True,  # since the context manager exiting will call .finish
+    )
+    with pytest.raises(Exception):  # noqa: B017, PT011, PT012
+        with httpx.Client() as http_client:
+            with cls(
+                http_client=http_client,
+                base_url=BASE_URL,
+                subtype=ServiceSubtype.ML_LLM,
+                proj_id=PROJ_ID,
+                user_id=USER_ID,
+                instances=10,
+                instance_type="ml.g4dn.xlarge",
+                duration=1000,
+            ) as session:
+                session.start()
+                raise Exception("asdf")  # noqa: EM101, TRY002
+
+
+@pytest.mark.parametrize("cls", classes)
+def test_finish_with_http_error(httpx_mock, cls):
     with httpx.Client() as http_client:
         httpx_mock.add_response(
             json={"message": "", "data": {"job_id": JOB_ID}},
@@ -457,7 +506,7 @@ def test_finish_with_http_error(httpx_mock):
             url=f"{BASE_URL}/usage/longrun",
             is_reusable=True,
         )
-        session = test_module.SyncLongrunSession(
+        session = cls(
             http_client=http_client,
             base_url=BASE_URL,
             subtype=ServiceSubtype.ML_LLM,
@@ -525,7 +574,7 @@ def test_longrun_send_heartbeat(httpx_mock):
         with pytest.raises(
             RuntimeError, match="Cannot send heartbeat before making a successful reservation"
         ):
-            session._send_heartbeat()
+            session.send_heartbeat()
 
         httpx_mock.add_response(
             json={"message": "", "data": {"job_id": JOB_ID}},
@@ -539,7 +588,7 @@ def test_longrun_send_heartbeat(httpx_mock):
             is_reusable=True,
         )
         session.make_reservation()
-        session._send_heartbeat()
+        session.send_heartbeat()
 
 
 def test_longrun_send_heartbeat_errors(httpx_mock):
@@ -567,7 +616,7 @@ def test_longrun_send_heartbeat_errors(httpx_mock):
         )
         session.make_reservation()
         with pytest.raises(AccountingUsageError, match="Error in response to"):
-            session._send_heartbeat()
+            session.send_heartbeat()
 
         httpx_mock.reset()
         httpx_mock.add_exception(
@@ -577,4 +626,4 @@ def test_longrun_send_heartbeat_errors(httpx_mock):
             is_reusable=True,
         )
         with pytest.raises(AccountingUsageError, match="Error in request"):
-            session._send_heartbeat()
+            session.send_heartbeat()

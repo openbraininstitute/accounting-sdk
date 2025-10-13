@@ -41,6 +41,7 @@ class SyncLongrunSession:
         duration: int,
         name: str | None = None,
         job_id: UUID | None = None,
+        job_running: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -51,11 +52,10 @@ class SyncLongrunSession:
         self._user_id: UUID = UUID(str(user_id))
         self._job_id: UUID | None = job_id
         self._name = name
-        self._job_running: bool = False
+        self._job_running: bool = job_running
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
-        self._cancel_heartbeat_sender: Any | None = None
 
     @property
     def name(self) -> str | None:
@@ -71,6 +71,11 @@ class SyncLongrunSession:
         if self.name is not None and self.name != value:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
         self._name = value
+
+    @property
+    def job_id(self) -> UUID | None:
+        """Return the job id."""
+        return self._job_id
 
     def make_reservation(self) -> None:
         """Make a new reservation."""
@@ -134,9 +139,6 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        self._cancel_heartbeat_sender = create_sync_periodic_task_manager(
-            self._send_heartbeat, HEARTBEAT_INTERVAL
-        )
         self._job_running = True
 
     def cancel_reservation(self) -> None:
@@ -181,7 +183,7 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-    def _send_heartbeat(self) -> None:
+    def send_heartbeat(self) -> None:
         """Send heartbeat event to accounting."""
         if self._job_id is None:
             errmsg = "Cannot send heartbeat before making a successful reservation"
@@ -207,12 +209,6 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-    def __enter__(self) -> Self:
-        """Initialize when entering the context manager."""
-        if self._job_id is None:
-            self.make_reservation()
-        return self
-
     def finish(
         self,
         exc_type: type[BaseException] | None = None,
@@ -220,9 +216,6 @@ class SyncLongrunSession:
         _exc_tb: TracebackType | None = None,
     ) -> None:
         """Cleanup when exiting the context manager."""
-        if self._cancel_heartbeat_sender:
-            self._cancel_heartbeat_sender()
-
         if self._job_id is None and not exc_val:
             errmsg = "Cannot close session before making a successful reservation"
             raise RuntimeError(errmsg)
@@ -233,24 +226,27 @@ class SyncLongrunSession:
                 self.cancel_reservation()
             except AccountingCancellationError as ex:
                 L.warning("Error while cancelling the reservation: %r", ex)
-
         elif not self._job_running and not exc_val:
             errmsg = "Accounting session must be started before closing."
             raise RuntimeError(errmsg)
-
         elif self._job_running and exc_type:
             # TODO: Consider refunding the user
             try:
                 self._finish()
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
-
         else:
             try:
                 L.debug("Finishing the job")
                 self._finish()
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
+
+    def __enter__(self) -> Self:
+        """Initialize when entering the context manager."""
+        if self._job_id is None:
+            self.make_reservation()
+        return self
 
     def __exit__(
         self,
@@ -259,6 +255,55 @@ class SyncLongrunSession:
         _exc_tb: TracebackType | None,
     ) -> None:
         self.finish(exc_type, exc_val, _exc_tb)
+
+
+class SyncLongrunSessionWithHeartbeat(SyncLongrunSession):
+    def __init__(
+        self,
+        http_client: httpx.Client,
+        base_url: str,
+        subtype: ServiceSubtype | str,
+        proj_id: UUID | str,
+        user_id: UUID | str,
+        instances: int,
+        instance_type: str,
+        duration: int,
+        name: str | None = None,
+        job_id: UUID | None = None,
+        job_running: bool = False,  # noqa: FBT001, FBT002
+    ) -> None:
+        """Initialization."""
+        super().__init__(
+            http_client=http_client,
+            base_url=base_url,
+            subtype=subtype,
+            proj_id=proj_id,
+            user_id=user_id,
+            instances=instances,
+            instance_type=instance_type,
+            duration=duration,
+            name=name,
+            job_id=job_id,
+            job_running=job_running,
+        )
+        self._cancel_heartbeat_sender: Any | None = None
+
+    def start(self) -> None:
+        super().start()
+        self._cancel_heartbeat_sender = create_sync_periodic_task_manager(
+            self.send_heartbeat, HEARTBEAT_INTERVAL
+        )
+
+    def finish(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_val: BaseException | None = None,
+        _exc_tb: TracebackType | None = None,
+    ) -> None:
+        """Cleanup when exiting the context manager."""
+        if self._cancel_heartbeat_sender:
+            self._cancel_heartbeat_sender()
+        super().finish(exc_type=exc_type, exc_val=exc_val, _exc_tb=_exc_tb)
 
 
 class SyncNullLongrunSession:

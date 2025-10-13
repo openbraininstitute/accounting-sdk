@@ -41,7 +41,7 @@ class AsyncLongrunSession:
         duration: int,
         name: str | None = None,
         job_id: UUID | None = None,
-        job_running: bool = False,
+        job_running: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -56,17 +56,11 @@ class AsyncLongrunSession:
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
-        self._cancel_heartbeat_sender: Any | None = None
 
     @property
     def name(self) -> str | None:
         """Return the job name."""
         return self._name
-
-    @property
-    def job_id(self) -> str | None:
-        """Return the job id."""
-        return self._job_id
 
     @name.setter
     def name(self, value: str) -> None:
@@ -77,6 +71,11 @@ class AsyncLongrunSession:
         if self.name is not None and self.name != value:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
         self._name = value
+
+    @property
+    def job_id(self) -> UUID | None:
+        """Return the job id."""
+        return self._job_id
 
     async def make_reservation(self) -> None:
         """Make a new reservation."""
@@ -140,9 +139,6 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        self._cancel_heartbeat_sender = create_async_periodic_task_manager(
-            self._send_heartbeat, HEARTBEAT_INTERVAL
-        )
         self._job_running = True
 
     async def cancel_reservation(self) -> None:
@@ -187,7 +183,7 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-    async def _send_heartbeat(self) -> None:
+    async def send_heartbeat(self) -> None:
         """Send heartbeat event to accounting."""
         if self._job_id is None:
             errmsg = "Cannot send heartbeat before making a successful reservation"
@@ -213,12 +209,6 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-    async def __aenter__(self) -> Self:
-        """Initialize when entering the context manager."""
-        if self._job_id is None:
-            await self.make_reservation()
-        return self
-
     async def finish(
         self,
         exc_type: type[BaseException] | None = None,
@@ -226,9 +216,6 @@ class AsyncLongrunSession:
         _exc_tb: TracebackType | None = None,
     ) -> None:
         """Cleanup when exiting the context manager."""
-        if self._cancel_heartbeat_sender:
-            self._cancel_heartbeat_sender()
-
         if self._job_id is None and not exc_val:
             errmsg = "Cannot close session before making a successful reservation"
             raise RuntimeError(errmsg)
@@ -239,24 +226,27 @@ class AsyncLongrunSession:
                 await self.cancel_reservation()
             except AccountingCancellationError as ex:
                 L.warning("Error while cancelling the reservation: %r", ex)
-
         elif not self._job_running and not exc_val:
             errmsg = "Accounting session must be started before closing."
             raise RuntimeError(errmsg)
-
         elif self._job_running and exc_type:
             # TODO: Consider refunding the user
             try:
                 await self._finish()
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
-
         else:
             try:
                 L.debug("Finishing the job")
                 await self._finish()
             except AccountingUsageError as ex:
                 L.error("Error while finishing the job: %r", ex)
+
+    async def __aenter__(self) -> Self:
+        """Initialize when entering the context manager."""
+        if self._job_id is None:
+            await self.make_reservation()
+        return self
 
     async def __aexit__(
         self,
@@ -265,6 +255,55 @@ class AsyncLongrunSession:
         _exc_tb: TracebackType | None,
     ) -> None:
         await self.finish(exc_type, exc_val, _exc_tb)
+
+
+class AsyncLongrunSessionWithHeartbeat(AsyncLongrunSession):
+    def __init__(
+        self,
+        http_client: httpx.AsyncClient,
+        base_url: str,
+        subtype: ServiceSubtype | str,
+        proj_id: UUID | str,
+        user_id: UUID | str,
+        instances: int,
+        instance_type: str,
+        duration: int,
+        name: str | None = None,
+        job_id: UUID | None = None,
+        job_running: bool = False,  # noqa: FBT001, FBT002
+    ) -> None:
+        """Initialization."""
+        super().__init__(
+            http_client=http_client,
+            base_url=base_url,
+            subtype=subtype,
+            proj_id=proj_id,
+            user_id=user_id,
+            instances=instances,
+            instance_type=instance_type,
+            duration=duration,
+            name=name,
+            job_id=job_id,
+            job_running=job_running,
+        )
+        self._cancel_heartbeat_sender: Any | None = None
+
+    async def start(self) -> None:
+        await super().start()
+        self._cancel_heartbeat_sender = create_async_periodic_task_manager(
+            self.send_heartbeat, HEARTBEAT_INTERVAL
+        )
+
+    async def finish(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_val: BaseException | None = None,
+        _exc_tb: TracebackType | None = None,
+    ) -> None:
+        """Cleanup when exiting the context manager."""
+        if self._cancel_heartbeat_sender:
+            self._cancel_heartbeat_sender()
+        await super().finish(exc_type=exc_type, exc_val=exc_val, _exc_tb=_exc_tb)
 
 
 class AsyncNullLongrunSession:
