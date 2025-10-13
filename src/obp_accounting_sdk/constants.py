@@ -46,6 +46,7 @@ class ServiceSubtype(HyphenStrEnum):
     STORAGE = auto()
     SYNAPTOME_BUILD = auto()
     SYNAPTOME_SIM = auto()
+    CLUSTER_SIMULATION = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
