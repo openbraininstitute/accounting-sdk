@@ -41,6 +41,7 @@ class AsyncLongrunSession:
         duration: int,
         name: str | None = None,
         job_id: UUID | None = None,
+        job_running: bool = False,
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -51,7 +52,7 @@ class AsyncLongrunSession:
         self._user_id: UUID = UUID(str(user_id))
         self._job_id: UUID | None = job_id
         self._name = name
-        self._job_running: bool = False
+        self._job_running: bool = job_running
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
@@ -61,6 +62,11 @@ class AsyncLongrunSession:
     def name(self) -> str | None:
         """Return the job name."""
         return self._name
+
+    @property
+    def job_id(self) -> str | None:
+        """Return the job id."""
+        return self._job_id
 
     @name.setter
     def name(self, value: str) -> None:
