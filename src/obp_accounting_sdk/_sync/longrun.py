@@ -41,6 +41,8 @@ class SyncLongrunSession:
         duration: int,
         name: str | None = None,
         job_id: UUID | None = None,
+        job_running: bool = False,  # noqa: FBT001, FBT002
+        heartbeat_interval: int = HEARTBEAT_INTERVAL,
     ) -> None:
         """Initialization."""
         self._http_client = http_client
@@ -51,16 +53,22 @@ class SyncLongrunSession:
         self._user_id: UUID = UUID(str(user_id))
         self._job_id: UUID | None = job_id
         self._name = name
-        self._job_running: bool = False
+        self._job_running: bool = job_running
         self._instances: int = instances
         self._instance_type: str = instance_type
         self._duration: int = duration
         self._cancel_heartbeat_sender: Any | None = None
+        self._heartbeat_interval: int = heartbeat_interval
 
     @property
     def name(self) -> str | None:
         """Return the job name."""
         return self._name
+
+    @property
+    def job_id(self) -> str | None:
+        """Return the job id."""
+        return self._job_id
 
     @name.setter
     def name(self, value: str) -> None:
@@ -134,9 +142,10 @@ class SyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        self._cancel_heartbeat_sender = create_sync_periodic_task_manager(
-            self._send_heartbeat, HEARTBEAT_INTERVAL
-        )
+        if self._heartbeat_interval > 0:
+            self._cancel_heartbeat_sender = create_sync_periodic_task_manager(
+                self._send_heartbeat, self._heartbeat_interval
+            )
         self._job_running = True
 
     def cancel_reservation(self) -> None:

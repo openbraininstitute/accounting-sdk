@@ -41,9 +41,14 @@ class AsyncLongrunSession:
         duration: int,
         name: str | None = None,
         job_id: UUID | None = None,
-        job_running: bool = False,
+        job_running: bool = False,  # noqa: FBT001, FBT002
+        heartbeat_interval: int = HEARTBEAT_INTERVAL,
     ) -> None:
-        """Initialization."""
+        """Initialization.
+
+        Note:
+            heartbeat_interval is in seconds; 0 for no heartbeat
+        """
         self._http_client = http_client
         self._base_url: str = base_url
         self._service_type: ServiceType = ServiceType.LONGRUN
@@ -57,6 +62,7 @@ class AsyncLongrunSession:
         self._instance_type: str = instance_type
         self._duration: int = duration
         self._cancel_heartbeat_sender: Any | None = None
+        self._heartbeat_interval: int = heartbeat_interval
 
     @property
     def name(self) -> str | None:
@@ -140,9 +146,10 @@ class AsyncLongrunSession:
             errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
             raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
-        self._cancel_heartbeat_sender = create_async_periodic_task_manager(
-            self._send_heartbeat, HEARTBEAT_INTERVAL
-        )
+        if self._heartbeat_interval > 0:
+            self._cancel_heartbeat_sender = create_async_periodic_task_manager(
+                self._send_heartbeat, self._heartbeat_interval
+            )
         self._job_running = True
 
     async def cancel_reservation(self) -> None:
