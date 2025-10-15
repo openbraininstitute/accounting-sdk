@@ -28,7 +28,7 @@ L = logging.getLogger(__name__)
 
 
 @dataclass
-class JobInfo:
+class LongRunJobInfo:
     service_subtype: ServiceSubtype | str
     proj_id: UUID
     user_id: UUID
@@ -41,7 +41,7 @@ class JobInfo:
 def make_reservation(
     base_url: str,
     http_client: httpx.Client,
-    job_info: JobInfo,
+    job_info: LongRunJobInfo,
 ) -> UUID:
     """Make a new reservation."""
     data = {
@@ -80,7 +80,7 @@ def make_reservation(
 def _send_status(
     base_url: str,
     http_client: httpx.Client,
-    job_info: JobInfo,
+    job_info: LongRunJobInfo,
     job_id: UUID,
     status: LongrunStatus,
 ) -> None:
@@ -107,7 +107,7 @@ def _send_status(
         raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
 
 
-def start(base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: UUID) -> None:
+def start(base_url: str, http_client: httpx.Client, job_info: LongRunJobInfo, job_id: UUID) -> None:
     """Start accounting for the current job."""
     return _send_status(
         base_url=base_url,
@@ -118,7 +118,9 @@ def start(base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: U
     )
 
 
-def finish(base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: UUID) -> None:
+def finish(
+    base_url: str, http_client: httpx.Client, job_info: LongRunJobInfo, job_id: UUID
+) -> None:
     """Send a session closure event to accounting."""
     return _send_status(
         base_url=base_url,
@@ -148,7 +150,7 @@ def cancel_reservation(
 
 
 def send_heartbeat(
-    base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: UUID
+    base_url: str, http_client: httpx.Client, job_info: LongRunJobInfo, job_id: UUID
 ) -> None:
     """Send heartbeat event to accounting."""
     return _send_status(
@@ -179,7 +181,7 @@ class SyncLongrunSession:
         """Initialization."""
         self._http_client = http_client
         self._base_url: str = base_url
-        self._job_info = JobInfo(
+        self._job_info = LongRunJobInfo(
             service_subtype=ServiceSubtype(subtype),
             proj_id=UUID(str(proj_id)),
             user_id=UUID(str(user_id)),
@@ -193,14 +195,14 @@ class SyncLongrunSession:
         self._cancel_heartbeat_sender: Any | None = None
 
     @property
+    def job_id(self) -> UUID | None:
+        """Return the job id."""
+        return self._job_id
+
+    @property
     def name(self) -> str | None:
         """Return the job name."""
         return self._job_info.name
-
-    @property
-    def job_id(self) -> str | None:
-        """Return the job id."""
-        return self._job_id
 
     @name.setter
     def name(self, value: str) -> None:
@@ -252,6 +254,7 @@ class SyncLongrunSession:
 
     def _finish(self) -> None:
         """Send a session closure event to accounting."""
+        assert self._job_id is not None  # noqa: S101
         finish(
             base_url=self._base_url,
             http_client=self._http_client,

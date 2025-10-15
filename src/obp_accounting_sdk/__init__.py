@@ -2,6 +2,7 @@
 
 from obp_accounting_sdk._async.factory import AsyncAccountingSessionFactory
 from obp_accounting_sdk._async.longrun import (
+    LongRunJobInfo,
     cancel_reservation,
     finish,
     make_reservation,
@@ -16,6 +17,7 @@ __all__ = [
     "AccountingSessionFactory",
     "AsyncAccountingSessionFactory",
     "AsyncOneshotSession",
+    "LongRunJobInfo",
     "OneshotSession",
     "cancel_reservation",
     "finish",

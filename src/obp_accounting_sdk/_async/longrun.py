@@ -28,7 +28,7 @@ L = logging.getLogger(__name__)
 
 
 @dataclass
-class JobInfo:
+class LongRunJobInfo:
     service_subtype: ServiceSubtype | str
     proj_id: UUID
     user_id: UUID
@@ -41,7 +41,7 @@ class JobInfo:
 async def make_reservation(
     base_url: str,
     http_client: httpx.AsyncClient,
-    job_info: JobInfo,
+    job_info: LongRunJobInfo,
 ) -> UUID:
     """Make a new reservation."""
     data = {
@@ -80,7 +80,7 @@ async def make_reservation(
 async def _send_status(
     base_url: str,
     http_client: httpx.AsyncClient,
-    job_info: JobInfo,
+    job_info: LongRunJobInfo,
     job_id: UUID,
     status: LongrunStatus,
 ) -> None:
@@ -108,7 +108,7 @@ async def _send_status(
 
 
 async def start(
-    base_url: str, http_client: httpx.AsyncClient, job_info: JobInfo, job_id: UUID
+    base_url: str, http_client: httpx.AsyncClient, job_info: LongRunJobInfo, job_id: UUID
 ) -> None:
     """Start accounting for the current job."""
     return await _send_status(
@@ -121,7 +121,7 @@ async def start(
 
 
 async def finish(
-    base_url: str, http_client: httpx.AsyncClient, job_info: JobInfo, job_id: UUID
+    base_url: str, http_client: httpx.AsyncClient, job_info: LongRunJobInfo, job_id: UUID
 ) -> None:
     """Send a session closure event to accounting."""
     return await _send_status(
@@ -152,7 +152,7 @@ async def cancel_reservation(
 
 
 async def send_heartbeat(
-    base_url: str, http_client: httpx.AsyncClient, job_info: JobInfo, job_id: UUID
+    base_url: str, http_client: httpx.AsyncClient, job_info: LongRunJobInfo, job_id: UUID
 ) -> None:
     """Send heartbeat event to accounting."""
     return await _send_status(
@@ -183,7 +183,7 @@ class AsyncLongrunSession:
         """Initialization."""
         self._http_client = http_client
         self._base_url: str = base_url
-        self._job_info = JobInfo(
+        self._job_info = LongRunJobInfo(
             service_subtype=ServiceSubtype(subtype),
             proj_id=UUID(str(proj_id)),
             user_id=UUID(str(user_id)),
@@ -197,14 +197,14 @@ class AsyncLongrunSession:
         self._cancel_heartbeat_sender: Any | None = None
 
     @property
+    def job_id(self) -> UUID | None:
+        """Return the job id."""
+        return self._job_id
+
+    @property
     def name(self) -> str | None:
         """Return the job name."""
         return self._job_info.name
-
-    @property
-    def job_id(self) -> str | None:
-        """Return the job id."""
-        return self._job_id
 
     @name.setter
     def name(self, value: str) -> None:
@@ -256,6 +256,7 @@ class AsyncLongrunSession:
 
     async def _finish(self) -> None:
         """Send a session closure event to accounting."""
+        assert self._job_id is not None  # noqa: S101
         await finish(
             base_url=self._base_url,
             http_client=self._http_client,
