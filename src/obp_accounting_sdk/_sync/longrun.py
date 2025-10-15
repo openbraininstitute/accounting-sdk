@@ -1,6 +1,7 @@
 """Longrun session."""
 
 import logging
+from dataclasses import dataclass
 from http import HTTPStatus
 from types import TracebackType
 from typing import Any, Self
@@ -26,6 +27,139 @@ from obp_accounting_sdk.utils import create_sync_periodic_task_manager, get_curr
 L = logging.getLogger(__name__)
 
 
+@dataclass
+class JobInfo:
+    service_subtype: ServiceSubtype | str
+    proj_id: UUID
+    user_id: UUID
+    name: str | None
+    duration: int
+    instances: int
+    instance_type: str
+
+
+def make_reservation(
+    base_url: str,
+    http_client: httpx.Client,
+    job_info: JobInfo,
+) -> UUID:
+    """Make a new reservation."""
+    data = {
+        "type": ServiceType.LONGRUN,
+        "subtype": job_info.service_subtype,
+        "proj_id": str(job_info.proj_id),
+        "user_id": str(job_info.user_id),
+        "name": job_info.name,
+        "duration": job_info.duration,
+        "instances": job_info.instances,
+        "instance_type": job_info.instance_type,
+    }
+    try:
+        response = http_client.post(
+            f"{base_url}/reservation/longrun",
+            json=data,
+        )
+        if response.status_code == HTTPStatus.PAYMENT_REQUIRED:
+            raise InsufficientFundsError
+        response.raise_for_status()
+    except httpx.RequestError as exc:
+        errmsg = f"Error in request {exc.request.method} {exc.request.url}"
+        raise AccountingReservationError(message=errmsg) from exc
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
+        raise AccountingReservationError(message=errmsg, http_status_code=status_code) from exc
+    try:
+        job_id = UUID(response.json()["data"]["job_id"])
+    except Exception as exc:
+        errmsg = "Error while parsing the response"
+        raise AccountingReservationError(message=errmsg) from exc
+    return job_id
+
+
+def _send_status(
+    base_url: str,
+    http_client: httpx.Client,
+    job_info: JobInfo,
+    job_id: UUID,
+    status: LongrunStatus,
+) -> None:
+    data = {
+        "type": ServiceType.LONGRUN,
+        "name": job_info.name,
+        "subtype": job_info.service_subtype,
+        "job_id": str(job_id),
+        "proj_id": str(job_info.proj_id),
+        "instances": str(job_info.instances),
+        "instance_type": job_info.instance_type,
+        "status": status,
+        "timestamp": get_current_timestamp(),
+    }
+    try:
+        response = http_client.post(f"{base_url}/usage/longrun", json=data)
+        response.raise_for_status()
+    except httpx.RequestError as exc:
+        errmsg = f"Error in request {exc.request.method} {exc.request.url}"
+        raise AccountingUsageError(message=errmsg) from exc
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
+        raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
+
+
+def start(base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: UUID) -> None:
+    """Start accounting for the current job."""
+    return _send_status(
+        base_url=base_url,
+        http_client=http_client,
+        job_info=job_info,
+        job_id=job_id,
+        status=LongrunStatus.STARTED,
+    )
+
+
+def finish(base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: UUID) -> None:
+    """Send a session closure event to accounting."""
+    return _send_status(
+        base_url=base_url,
+        http_client=http_client,
+        job_info=job_info,
+        job_id=job_id,
+        status=LongrunStatus.FINISHED,
+    )
+
+
+def cancel_reservation(
+    base_url: str,
+    http_client: httpx.Client,
+    job_id: UUID,
+) -> None:
+    """Cancel the reservation."""
+    try:
+        response = http_client.delete(f"{base_url}/reservation/longrun/{job_id}")
+        response.raise_for_status()
+    except httpx.RequestError as exc:
+        errmsg = f"Error in request {exc.request.method} {exc.request.url}"
+        raise AccountingCancellationError(message=errmsg) from exc
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
+        raise AccountingCancellationError(message=errmsg, http_status_code=status_code) from exc
+
+
+def send_heartbeat(
+    base_url: str, http_client: httpx.Client, job_info: JobInfo, job_id: UUID
+) -> None:
+    """Send heartbeat event to accounting."""
+    return _send_status(
+        base_url=base_url,
+        http_client=http_client,
+        job_info=job_info,
+        job_id=job_id,
+        status=LongrunStatus.RUNNING,
+    )
+
+
 class SyncLongrunSession:
     """Longrun Session."""
 
@@ -45,22 +179,28 @@ class SyncLongrunSession:
         """Initialization."""
         self._http_client = http_client
         self._base_url: str = base_url
-        self._service_type: ServiceType = ServiceType.LONGRUN
-        self._service_subtype: ServiceSubtype = ServiceSubtype(subtype)
-        self._proj_id: UUID = UUID(str(proj_id))
-        self._user_id: UUID = UUID(str(user_id))
+        self._job_info = JobInfo(
+            service_subtype=ServiceSubtype(subtype),
+            proj_id=UUID(str(proj_id)),
+            user_id=UUID(str(user_id)),
+            name=name,
+            duration=duration,
+            instances=instances,
+            instance_type=instance_type,
+        )
         self._job_id: UUID | None = job_id
-        self._name = name
         self._job_running: bool = False
-        self._instances: int = instances
-        self._instance_type: str = instance_type
-        self._duration: int = duration
         self._cancel_heartbeat_sender: Any | None = None
 
     @property
     def name(self) -> str | None:
         """Return the job name."""
-        return self._name
+        return self._job_info.name
+
+    @property
+    def job_id(self) -> str | None:
+        """Return the job id."""
+        return self._job_id
 
     @name.setter
     def name(self, value: str) -> None:
@@ -68,72 +208,32 @@ class SyncLongrunSession:
         if not isinstance(value, str) or len(value) > MAX_JOB_NAME_LENGTH:
             errmsg = f"Job name must be a string with max length {MAX_JOB_NAME_LENGTH}"
             raise ValueError(errmsg)
-        if self.name is not None and self.name != value:
+        if self._job_info.name is not None and self._job_info.name != value:
             L.info("Overriding previous name value '%s' with '%s'", self.name, value)
-        self._name = value
+        self._job_info.name = value
 
     def make_reservation(self) -> None:
         """Make a new reservation."""
         if self._job_id is not None:
             errmsg = "Cannot make a reservation more than once"
             raise RuntimeError(errmsg)
-        data = {
-            "type": self._service_type,
-            "subtype": self._service_subtype,
-            "proj_id": str(self._proj_id),
-            "user_id": str(self._user_id),
-            "name": self.name,
-            "duration": self._duration,
-            "instances": self._instances,
-            "instance_type": self._instance_type,
-        }
-        try:
-            response = self._http_client.post(
-                f"{self._base_url}/reservation/longrun",
-                json=data,
-            )
-            if response.status_code == HTTPStatus.PAYMENT_REQUIRED:
-                raise InsufficientFundsError
-            response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingReservationError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingReservationError(message=errmsg, http_status_code=status_code) from exc
-        try:
-            self._job_id = UUID(response.json()["data"]["job_id"])
-        except Exception as exc:
-            errmsg = "Error while parsing the response"
-            raise AccountingReservationError(message=errmsg) from exc
+        self._job_id = make_reservation(
+            base_url=self._base_url,
+            http_client=self._http_client,
+            job_info=self._job_info,
+        )
 
     def start(self) -> None:
         """Start accounting for the current job."""
         if self._job_id is None:
             errmsg = "Cannot send session before making a successful reservation"
             raise RuntimeError(errmsg)
-        data = {
-            "type": self._service_type,
-            "subtype": self._service_subtype,
-            "job_id": str(self._job_id),
-            "proj_id": str(self._proj_id),
-            "status": LongrunStatus.STARTED,
-            "instances": str(self._instances),
-            "instance_type": self._instance_type,
-            "timestamp": get_current_timestamp(),
-        }
-        try:
-            response = self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
-            response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingUsageError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
-
+        start(
+            base_url=self._base_url,
+            http_client=self._http_client,
+            job_info=self._job_info,
+            job_id=self._job_id,
+        )
         self._cancel_heartbeat_sender = create_sync_periodic_task_manager(
             self._send_heartbeat, HEARTBEAT_INTERVAL
         )
@@ -144,68 +244,32 @@ class SyncLongrunSession:
         if self._job_id is None:
             errmsg = "Cannot cancel a reservation without a job id"
             raise RuntimeError(errmsg)
-        try:
-            response = self._http_client.delete(
-                f"{self._base_url}/reservation/longrun/{self._job_id}"
-            )
-            response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingCancellationError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingCancellationError(message=errmsg, http_status_code=status_code) from exc
+        cancel_reservation(
+            base_url=self._base_url,
+            http_client=self._http_client,
+            job_id=self._job_id,
+        )
 
     def _finish(self) -> None:
         """Send a session closure event to accounting."""
-        data = {
-            "type": self._service_type,
-            "subtype": self._service_subtype,
-            "proj_id": str(self._proj_id),
-            "job_id": str(self._job_id),
-            "name": self.name,
-            "status": LongrunStatus.FINISHED,
-            "instances": str(self._instances),
-            "instance_type": self._instance_type,
-            "timestamp": get_current_timestamp(),
-        }
-        try:
-            response = self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
-            response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingUsageError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
+        finish(
+            base_url=self._base_url,
+            http_client=self._http_client,
+            job_info=self._job_info,
+            job_id=self._job_id,
+        )
 
     def _send_heartbeat(self) -> None:
         """Send heartbeat event to accounting."""
         if self._job_id is None:
             errmsg = "Cannot send heartbeat before making a successful reservation"
             raise RuntimeError(errmsg)
-        data = {
-            "type": self._service_type,
-            "subtype": self._service_subtype,
-            "job_id": str(self._job_id),
-            "proj_id": str(self._proj_id),
-            "status": LongrunStatus.RUNNING,
-            "instances": str(self._instances),
-            "instance_type": self._instance_type,
-            "timestamp": get_current_timestamp(),
-        }
-        try:
-            response = self._http_client.post(f"{self._base_url}/usage/longrun", json=data)
-            response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingUsageError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingUsageError(message=errmsg, http_status_code=status_code) from exc
+        send_heartbeat(
+            base_url=self._base_url,
+            http_client=self._http_client,
+            job_info=self._job_info,
+            job_id=self._job_id,
+        )
 
     def __enter__(self) -> Self:
         """Initialize when entering the context manager."""

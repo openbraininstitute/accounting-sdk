@@ -48,6 +48,7 @@ def test_longrun_session_success(httpx_mock):
             instance_type="ml.g4dn.xlarge",
             duration=1000,
         ) as session:
+            assert str(session.job_id) == JOB_ID
             session.start()
 
             assert session.name is None
