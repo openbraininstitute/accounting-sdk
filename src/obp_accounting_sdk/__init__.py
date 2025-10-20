@@ -1,15 +1,9 @@
 """Accounting SDK."""
 
+from obp_accounting_sdk._async import longrun as async_longrun
 from obp_accounting_sdk._async.factory import AsyncAccountingSessionFactory
-from obp_accounting_sdk._async.longrun import (
-    LongRunJobInfo,
-    cancel_reservation,
-    finish,
-    make_reservation,
-    send_heartbeat,
-    start,
-)
 from obp_accounting_sdk._async.oneshot import AsyncOneshotSession
+from obp_accounting_sdk._sync import longrun
 from obp_accounting_sdk._sync.factory import AccountingSessionFactory
 from obp_accounting_sdk._sync.oneshot import OneshotSession
 
@@ -17,11 +11,7 @@ __all__ = [
     "AccountingSessionFactory",
     "AsyncAccountingSessionFactory",
     "AsyncOneshotSession",
-    "LongRunJobInfo",
     "OneshotSession",
-    "cancel_reservation",
-    "finish",
-    "make_reservation",
-    "send_heartbeat",
-    "start",
+    "async_longrun",
+    "longrun",
 ]
