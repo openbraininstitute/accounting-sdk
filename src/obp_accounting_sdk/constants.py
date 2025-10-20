@@ -46,7 +46,15 @@ class ServiceSubtype(HyphenStrEnum):
     STORAGE = auto()
     SYNAPTOME_BUILD = auto()
     SYNAPTOME_SIM = auto()
-    CLUSTER_SIMULATION = auto()
+    # these values are a mirror of the ones in entitycore:
+    # https://github.com/openbraininstitute/entitycore/blob/6a20aa95748136d7a54a98326d8140751fcf1a09/app/db/types.py#L620
+    SINGLE_SIM = auto()
+    PAIR_SIM = auto()
+    SMALL_SIM = auto()
+    MICROCIRCUIT_SIM = auto()
+    REGION_SIM = auto()
+    SYSTEM_SIM = auto()
+    WHOLE_BRAIN_SIM = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
