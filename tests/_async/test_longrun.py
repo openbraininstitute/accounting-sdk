@@ -1,3 +1,4 @@
+import json
 import re
 
 import httpx
@@ -47,6 +48,7 @@ async def test_longrun_session_success(httpx_mock):
             instance_type="ml.g4dn.xlarge",
             duration=1000,
         ) as session:
+            assert str(session.job_id) == JOB_ID
             await session.start()
 
             assert session.name is None
@@ -390,3 +392,190 @@ async def test_longrun_session_with_application_error_and_cancellation_timeout(h
 async def test_longrun_session_null_as_context_manager():
     async with test_module.AsyncNullLongrunSession() as session:
         assert session.instances == 0
+
+
+async def test_errors(httpx_mock):
+    async with httpx.AsyncClient() as http_client:
+        session = test_module.AsyncLongrunSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            instances=10,
+            instance_type="ml.g4dn.xlarge",
+            duration=1000,
+        )
+        # session not reserved
+        with pytest.raises(
+            Exception, match="Cannot send session before making a successful reservation"
+        ):
+            await session.start()
+
+        # session not started
+        with pytest.raises(Exception, match="Cannot cancel a reservation without a job id"):
+            await session.cancel_reservation()
+
+        with pytest.raises(
+            Exception, match="Cannot close session before making a successful reservation"
+        ):
+            await session.finish()
+
+        httpx_mock.add_response(
+            json={"message": "", "data": {"job_id": JOB_ID}},
+            method="POST",
+            url=f"{BASE_URL}/reservation/longrun",
+        )
+        await session.make_reservation()
+        with pytest.raises(Exception, match="Accounting session must be started before closing"):
+            await session.finish()
+
+
+async def test_finish_with_http_error(httpx_mock):
+    async with httpx.AsyncClient() as http_client:
+        httpx_mock.add_response(
+            json={"message": "", "data": {"job_id": JOB_ID}},
+            method="POST",
+            url=f"{BASE_URL}/reservation/longrun",
+        )
+
+        def cb(request):
+            js = json.loads(request.content.decode("utf-8"))
+            if js["status"] == "started":
+                return httpx.Response(
+                    status_code=200,
+                    json={"url": str(request.url)},
+                )
+            # Accounting server gives a 500 on the last call
+            return httpx.Response(
+                status_code=500,
+                json={"url": str(request.url)},
+            )
+
+        httpx_mock.add_callback(
+            callback=cb,
+            method="POST",
+            url=f"{BASE_URL}/usage/longrun",
+            is_reusable=True,
+        )
+        session = test_module.AsyncLongrunSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            instances=10,
+            instance_type="ml.g4dn.xlarge",
+            duration=1000,
+        )
+        await session.make_reservation()
+        await session.start()
+        await session.finish()
+
+        httpx_mock.reset()
+
+        httpx_mock.add_response(
+            json={"message": "", "data": {"job_id": JOB_ID}},
+            method="POST",
+            url=f"{BASE_URL}/reservation/longrun",
+        )
+
+        def cb(request):
+            js = json.loads(request.content.decode("utf-8"))
+            if js["status"] == "started":
+                return httpx.Response(
+                    status_code=200,
+                    json={"url": str(request.url)},
+                )
+            msg = "Timeout"
+            raise httpx.RequestError(msg)
+
+        httpx_mock.add_callback(
+            callback=cb,
+            method="POST",
+            url=f"{BASE_URL}/usage/longrun",
+            is_reusable=True,
+        )
+        session = test_module.AsyncLongrunSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            instances=10,
+            instance_type="ml.g4dn.xlarge",
+            duration=1000,
+        )
+        await session.make_reservation()
+        await session.start()
+        await session.finish()  # will print out a logging error due to `RequestError`
+
+
+async def test_longrun_send_heartbeat(httpx_mock):
+    async with httpx.AsyncClient() as http_client:
+        session = test_module.AsyncLongrunSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            instances=10,
+            instance_type="ml.g4dn.xlarge",
+            duration=1000,
+        )
+        with pytest.raises(
+            RuntimeError, match="Cannot send heartbeat before making a successful reservation"
+        ):
+            await session._send_heartbeat()
+
+        httpx_mock.add_response(
+            json={"message": "", "data": {"job_id": JOB_ID}},
+            method="POST",
+            url=f"{BASE_URL}/reservation/longrun",
+        )
+        httpx_mock.add_response(
+            json={"message": "", "data": None},
+            method="POST",
+            url=f"{BASE_URL}/usage/longrun",
+            is_reusable=True,
+        )
+        await session.make_reservation()
+        await session._send_heartbeat()
+
+
+async def test_longrun_send_heartbeat_errors(httpx_mock):
+    async with httpx.AsyncClient() as http_client:
+        session = test_module.AsyncLongrunSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            instances=10,
+            instance_type="ml.g4dn.xlarge",
+            duration=1000,
+        )
+        httpx_mock.add_response(
+            json={"message": "", "data": {"job_id": JOB_ID}},
+            method="POST",
+            url=f"{BASE_URL}/reservation/longrun",
+        )
+        httpx_mock.add_response(
+            status_code=500,
+            method="POST",
+            url=f"{BASE_URL}/usage/longrun",
+            is_reusable=True,
+        )
+        await session.make_reservation()
+        with pytest.raises(AccountingUsageError, match="Error in response to"):
+            await session._send_heartbeat()
+
+        httpx_mock.reset()
+        httpx_mock.add_exception(
+            httpx.ReadTimeout("Unable to read within timeout"),
+            method="POST",
+            url=f"{BASE_URL}/usage/longrun",
+            is_reusable=True,
+        )
+        with pytest.raises(AccountingUsageError, match="Error in request"):
+            await session._send_heartbeat()
