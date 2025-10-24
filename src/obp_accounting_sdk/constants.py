@@ -39,6 +39,7 @@ class ServiceSubtype(HyphenStrEnum):
     ML_LLM = auto()
     ML_RAG = auto()
     ML_RETRIEVAL = auto()
+    NEURON_MESH_SKELETONIZATION = auto()
     NOTEBOOK = auto()
     SINGLE_CELL_BUILD = auto()
     SINGLE_CELL_SIM = auto()

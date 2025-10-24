@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.2.2
+
+- Add service subtype for neuron mesh skeletonization.
+
 ## Version 0.2.1
 
 - Add service subtype for small circuit simulations.
