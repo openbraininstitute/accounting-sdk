@@ -36,6 +36,7 @@ class ServiceType(HyphenStrEnum):
 class ServiceSubtype(HyphenStrEnum):
     """Service Subtype."""
 
+    ION_CHANNEL_BUILD = auto()
     ML_LLM = auto()
     ML_RAG = auto()
     ML_RETRIEVAL = auto()
