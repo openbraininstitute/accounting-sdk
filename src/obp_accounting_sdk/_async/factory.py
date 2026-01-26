@@ -9,8 +9,12 @@ import httpx
 
 from obp_accounting_sdk._async.longrun import AsyncLongrunSession, AsyncNullLongrunSession
 from obp_accounting_sdk._async.oneshot import AsyncNullOneshotSession, AsyncOneshotSession
-from obp_accounting_sdk.constants import ServiceSubtype, ServiceType
-from obp_accounting_sdk.errors import AccountingReservationError
+from obp_accounting_sdk.constants import ServiceSubtype
+from obp_accounting_sdk.utils import (
+    _handle_estimate_oneshot_cost_error,
+    _parse_estimate_oneshot_cost_response,
+    _prepare_estimate_oneshot_cost_data,
+)
 
 L = logging.getLogger(__name__)
 
@@ -69,47 +73,28 @@ class AsyncAccountingSessionFactory:
         self,
         subtype: ServiceSubtype | str,
         count: int,
-        *,
-        proj_id: UUID | str | None = None,
-        vlab_id: UUID | str | None = None,
+        proj_id: UUID | str,
     ) -> Decimal:
         """Estimate the cost in credits for a oneshot job."""
         if self._disabled:
-            return Decimal("0")
+            return Decimal(0)
         if not self._http_client:
             errmsg = "The internal http client is not set"
             raise RuntimeError(errmsg)
-        if proj_id is None and vlab_id is None:
-            errmsg = "Either proj_id or vlab_id must be provided"
-            raise ValueError(errmsg)
 
-        data = {
-            "type": ServiceType.ONESHOT,
-            "subtype": str(ServiceSubtype(subtype)),
-            "count": count,
-        }
-        if proj_id is not None:
-            data["proj_id"] = str(proj_id)
-        if vlab_id is not None:
-            data["vlab_id"] = str(vlab_id)
+        data = _prepare_estimate_oneshot_cost_data(
+            subtype=subtype,
+            count=count,
+            proj_id=proj_id,
+        )
 
         try:
             response = await self._http_client.post(
-                f"{self._base_url}/price/estimate/oneshot",
+                f"{self._base_url}/estimate/oneshot",
                 json=data,
             )
             response.raise_for_status()
-        except httpx.RequestError as exc:
-            errmsg = f"Error in request {exc.request.method} {exc.request.url}"
-            raise AccountingReservationError(message=errmsg) from exc
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            errmsg = f"Error in response to {exc.request.method} {exc.request.url}: {status_code}"
-            raise AccountingReservationError(message=errmsg, http_status_code=status_code) from exc
-        try:
-            result = response.json()
-            cost_str = result["data"]["cost"]
-            return Decimal(str(cost_str))
-        except Exception as exc:
-            errmsg = "Error while parsing the response"
-            raise AccountingReservationError(message=errmsg) from exc
+        except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+            _handle_estimate_oneshot_cost_error(exc, exc.request)
+
+        return _parse_estimate_oneshot_cost_response(response)
