@@ -128,6 +128,20 @@ def test_estimate_oneshot_cost_with_disabled(monkeypatch):
         assert cost == Decimal(0)
 
 
+def test_estimate_oneshot_cost_with_http_client_none(monkeypatch):
+    monkeypatch.setenv("ACCOUNTING_DISABLED", "1")
+    with closing(test_module.AccountingSessionFactory()) as session_factory:
+        assert session_factory._disabled is True
+        # enforce an invalid internal status, although this should never happen
+        monkeypatch.setattr(session_factory, "_disabled", False)
+        with pytest.raises(RuntimeError, match="The internal http client is not set"):
+            session_factory.estimate_oneshot_cost(
+                subtype=ServiceSubtype.ML_LLM,
+                count=100,
+                proj_id=PROJ_ID,
+            )
+
+
 def test_estimate_oneshot_cost_with_http_error(httpx_mock, monkeypatch):
     monkeypatch.setenv("ACCOUNTING_BASE_URL", BASE_URL)
     httpx_mock.add_response(

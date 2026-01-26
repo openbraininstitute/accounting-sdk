@@ -81,7 +81,6 @@ class AccountingSessionFactory:
         if not self._http_client:
             errmsg = "The internal http client is not set"
             raise RuntimeError(errmsg)
-
         data = _prepare_estimate_oneshot_cost_data(
             subtype=subtype,
             count=count,
