@@ -128,8 +128,6 @@ async def test_estimate_oneshot_cost_with_disabled(monkeypatch):
         assert cost == Decimal("0")
 
 
-
-
 async def test_estimate_oneshot_cost_with_http_error(httpx_mock, monkeypatch):
     monkeypatch.setenv("ACCOUNTING_BASE_URL", BASE_URL)
     httpx_mock.add_response(
