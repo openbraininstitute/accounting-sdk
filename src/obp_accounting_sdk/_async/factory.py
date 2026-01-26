@@ -78,9 +78,6 @@ class AsyncAccountingSessionFactory:
         """Estimate the cost in credits for a oneshot job."""
         if self._disabled:
             return Decimal(0)
-        if not self._http_client:
-            errmsg = "The internal http client is not set"
-            raise RuntimeError(errmsg)
 
         data = _prepare_estimate_oneshot_cost_data(
             subtype=subtype,
