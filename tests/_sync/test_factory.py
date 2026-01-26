@@ -125,7 +125,7 @@ def test_estimate_oneshot_cost_with_disabled(monkeypatch):
             count=100,
             proj_id=PROJ_ID,
         )
-        assert cost == Decimal("0")
+        assert cost == Decimal(0)
 
 
 def test_estimate_oneshot_cost_with_http_error(httpx_mock, monkeypatch):
