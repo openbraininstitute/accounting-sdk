@@ -1,4 +1,5 @@
 import re
+from uuid import UUID
 
 import httpx
 import pytest
@@ -241,7 +242,7 @@ def test_oneshot_session_improperly_used(httpx_mock):
         ):
             session._send_usage()
         with pytest.raises(RuntimeError, match="Cannot cancel a reservation without a job id"):
-            session._cancel_reservation()
+            session.cancel_reservation()
         session.make_reservation()
         with pytest.raises(RuntimeError, match="Cannot make a reservation more than once"):
             session.make_reservation()
@@ -349,6 +350,79 @@ def test_oneshot_session_with_application_error_and_cancellation_timeout(httpx_m
     )
 
 
+def test_oneshot_session_cancel_after_finish(httpx_mock):
+    httpx_mock.add_response(
+        json={"message": "", "data": {"job_id": JOB_ID}},
+        method="POST",
+        url=f"{BASE_URL}/reservation/oneshot",
+    )
+    httpx_mock.add_response(
+        json={"message": "", "data": None},
+        method="POST",
+        url=f"{BASE_URL}/usage/oneshot",
+    )
+
+    with httpx.Client() as http_client:
+        session = test_module.OneshotSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            count=10,
+        )
+        session.make_reservation()
+        session.finish()
+        with pytest.raises(
+            RuntimeError, match="Cannot cancel a reservation after a successful finish"
+        ):
+            session.cancel_reservation()
+
+
+def test_oneshot_session_job_id(httpx_mock):
+    httpx_mock.add_response(
+        json={"message": "", "data": {"job_id": JOB_ID}},
+        method="POST",
+        url=f"{BASE_URL}/reservation/oneshot",
+    )
+
+    with httpx.Client() as http_client:
+        session = test_module.OneshotSession(
+            http_client=http_client,
+            base_url=BASE_URL,
+            subtype=ServiceSubtype.ML_LLM,
+            proj_id=PROJ_ID,
+            user_id=USER_ID,
+            count=10,
+        )
+        assert session.job_id is None
+        session.make_reservation()
+        assert session.job_id == UUID(JOB_ID)
+
+
 def test_oneshot_session_null_as_context_manager():
     with test_module.NullOneshotSession() as session:
         assert session.count == 0
+        assert session.job_id is not None
+        assert isinstance(session.job_id, UUID)
+
+
+def test_null_session_job_id():
+    session = test_module.NullOneshotSession()
+    assert session.job_id is None
+    session.make_reservation()
+    assert session.job_id is not None
+    assert isinstance(session.job_id, UUID)
+
+
+def test_null_session_cannot_reserve_twice():
+    session = test_module.NullOneshotSession()
+    session.make_reservation()
+    with pytest.raises(RuntimeError, match="Cannot make a reservation more than once"):
+        session.make_reservation()
+
+
+def test_null_session_cancel_reservation():
+    session = test_module.NullOneshotSession()
+    session.make_reservation()
+    session.cancel_reservation()  # should be a no-op
