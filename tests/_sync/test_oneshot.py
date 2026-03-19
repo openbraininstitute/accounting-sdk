@@ -403,16 +403,14 @@ def test_oneshot_session_job_id(httpx_mock):
 def test_oneshot_session_null_as_context_manager():
     with test_module.NullOneshotSession() as session:
         assert session.count == 0
-        assert session.job_id is not None
-        assert isinstance(session.job_id, UUID)
+        assert session.job_id == UUID(int=0)
 
 
 def test_null_session_job_id():
     session = test_module.NullOneshotSession()
     assert session.job_id is None
     session.make_reservation()
-    assert session.job_id is not None
-    assert isinstance(session.job_id, UUID)
+    assert session.job_id == UUID(int=0)
 
 
 def test_null_session_cannot_reserve_twice():

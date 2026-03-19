@@ -53,7 +53,7 @@ from abc import ABC, abstractmethod
 from http import HTTPStatus
 from types import TracebackType
 from typing import Self
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import httpx
 
@@ -401,7 +401,7 @@ class NullOneshotSession(SyncBaseOneshotSession):
         if self._job_id is not None:
             errmsg = "Cannot make a reservation more than once"
             raise RuntimeError(errmsg)
-        self._job_id = uuid4()
+        self._job_id = UUID(int=0)
 
     def start(self) -> None:
         """No-op. Start is not used for oneshot jobs."""
