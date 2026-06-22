@@ -196,12 +196,12 @@ class SyncLongrunSession:
 
     @property
     def job_id(self) -> UUID | None:
-        """Return the job id."""
+        """The job id."""
         return self._job_id
 
     @property
     def name(self) -> str | None:
-        """Return the job name."""
+        """The job name."""
         return self._job_info.name
 
     @name.setter
