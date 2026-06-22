@@ -60,6 +60,7 @@ class ServiceSubtype(HyphenStrEnum):
     WHOLE_BRAIN_SIM = auto()
     CIRCUIT_EXTRACTION = auto()
     EM_SYNAPSE_MAPPING = auto()
+    BRIAN2_CIRCUIT_SIMULATION = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
