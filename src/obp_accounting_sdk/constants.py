@@ -17,9 +17,9 @@ class HyphenStrEnum(StrEnum):
     @staticmethod
     def _generate_next_value_(
         name: str,
-        start: int,  # noqa: ARG004
-        count: int,  # noqa: ARG004
-        last_values: list[str],  # noqa: ARG004
+        start: int,  # ruff: ignore[unused-static-method-argument]
+        count: int,  # ruff: ignore[unused-static-method-argument]
+        last_values: list[str],  # ruff: ignore[unused-static-method-argument]
     ) -> str:
         """Return the hyphenated lower-cased version of the member name."""
         return name.lower().replace("_", "-")
