@@ -59,6 +59,7 @@ class ServiceSubtype(HyphenStrEnum):
     SYSTEM_SIM = auto()
     WHOLE_BRAIN_SIM = auto()
     CIRCUIT_EXTRACTION = auto()
+    CIRCUIT_SIMPLIFICATION = auto()
     EM_SYNAPSE_MAPPING = auto()
     BRIAN2_CIRCUIT_SIMULATION = auto()
 
