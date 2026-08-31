@@ -254,7 +254,7 @@ class SyncLongrunSession:
 
     def _finish(self) -> None:
         """Send a session closure event to accounting."""
-        assert self._job_id is not None  # noqa: S101
+        assert self._job_id is not None  # ruff: ignore[assert]
         finish(
             base_url=self._base_url,
             http_client=self._http_client,

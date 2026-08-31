@@ -408,7 +408,7 @@ class NullOneshotSession(SyncBaseOneshotSession):
 
     def finish(
         self,
-        exc_type: type[BaseException] | None = None,  # noqa: ARG002
+        exc_type: type[BaseException] | None = None,  # ruff: ignore[unused-method-argument]
         _exc_val: BaseException | None = None,
         _exc_tb: TracebackType | None = None,
     ) -> None:

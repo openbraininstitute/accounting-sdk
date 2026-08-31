@@ -70,7 +70,7 @@ acc_session = accounting_session_factory.longrun_session(
 )
 
 await acc_session.make_reservation()
-await acc_session.start() # start method is required only for longrun sessions.
+await acc_session.start()  # start method is required only for longrun sessions.
 
 # Actual logic
 

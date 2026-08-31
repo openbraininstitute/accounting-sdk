@@ -125,7 +125,7 @@ def create_sync_periodic_task_manager(
                 callback()
             except RuntimeError as exc:
                 L.error("Error in callback: %s", exc)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # ruff: ignore[blind-except]
                 L.error("Error in callback: %s", exc)
                 break
 
