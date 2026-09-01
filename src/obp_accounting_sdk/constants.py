@@ -39,8 +39,6 @@ class ServiceSubtype(HyphenStrEnum):
     ION_CHANNEL_BUILD = auto()
     ION_CHANNEL_SIM = auto()
     ML_LLM = auto()
-    ML_RAG = auto()
-    ML_RETRIEVAL = auto()
     NEURON_MESH_SKELETONIZATION = auto()
     NOTEBOOK = auto()
     SINGLE_CELL_BUILD = auto()
