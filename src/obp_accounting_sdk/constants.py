@@ -62,6 +62,9 @@ class ServiceSubtype(HyphenStrEnum):
     CIRCUIT_SIMPLIFICATION = auto()
     EM_SYNAPSE_MAPPING = auto()
     BRIAN2_CIRCUIT_SIMULATION = auto()
+    EMODEL_FEATURES_EXTRACTION = auto()
+    EMODEL_OPTIMISATION = auto()
+    EMODEL_VALIDATION = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
