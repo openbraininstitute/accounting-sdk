@@ -65,6 +65,8 @@ class ServiceSubtype(HyphenStrEnum):
     EMODEL_FEATURES_EXTRACTION = auto()
     EMODEL_OPTIMISATION = auto()
     EMODEL_VALIDATION = auto()
+    SYNAPSE_PARAMETERIZATION_SMALL = auto()
+    SYNAPSE_PARAMETERIZATION_LARGE = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
