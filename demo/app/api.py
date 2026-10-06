@@ -1,7 +1,7 @@
 """Api."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import aclosing, asynccontextmanager, closing
 from typing import Annotated, Any
 from uuid import UUID
@@ -27,7 +27,7 @@ L = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+async def lifespan(_: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
     """Execute actions on server startup and shutdown."""
     L.info("Starting api")
     async with aclosing(AsyncAccountingSessionFactory()) as async_session_factory:

@@ -39,6 +39,8 @@ class ServiceSubtype(HyphenStrEnum):
     ION_CHANNEL_BUILD = auto()
     ION_CHANNEL_SIM = auto()
     ML_LLM = auto()
+    # `notebook-service`: MCP sandbox session
+    MCP = auto()
     ML_RAG = auto()
     ML_RETRIEVAL = auto()
     NEURON_MESH_SKELETONIZATION = auto()
