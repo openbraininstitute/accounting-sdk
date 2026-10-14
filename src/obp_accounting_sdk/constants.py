@@ -69,6 +69,7 @@ class ServiceSubtype(HyphenStrEnum):
     EMODEL_VALIDATION = auto()
     SYNAPSE_PARAMETERIZATION_SMALL = auto()
     SYNAPSE_PARAMETERIZATION_LARGE = auto()
+    EXTRACELLULAR_RECORDING_ARRAY_BUILD = auto()
 
 
 class LongrunStatus(HyphenStrEnum):
