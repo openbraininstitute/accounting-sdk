@@ -41,6 +41,8 @@ class ServiceSubtype(HyphenStrEnum):
     ML_LLM = auto()
     # `notebook-service`: MCP sandbox session
     MCP = auto()
+    # `neuroagent`: Autonomous researcher agent (AgentCore Runtime), longrun
+    RESEARCH_AGENT = auto()
     ML_RAG = auto()
     ML_RETRIEVAL = auto()
     NEURON_MESH_SKELETONIZATION = auto()
