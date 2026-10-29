@@ -20,9 +20,10 @@ from obp_accounting_sdk.errors import AccountingReservationError
 L = logging.getLogger(__name__)
 
 
-def get_current_timestamp() -> str:
+def get_current_timestamp(clock: Callable[[], float] = time.time) -> str:
     """Return the current timestamp in seconds formatted as string."""
-    return str(int(time.time()))
+    # `clock` is injectable so tests can pass a fixed time without patching `time.time`.
+    return str(int(clock()))
 
 
 def create_cancellable_async_task(fn: Coroutine[Any, Any, Any]) -> Callable[[], Any]:
