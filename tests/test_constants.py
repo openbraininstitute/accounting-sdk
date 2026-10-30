@@ -5,6 +5,10 @@ def test_mcp_service_subtype_value():
     assert ServiceSubtype.MCP.value == "mcp"
 
 
+def test_research_agent_service_subtype_value():
+    assert ServiceSubtype.RESEARCH_AGENT.value == "research-agent"
+
+
 def test_extracellular_recording_array_build_service_subtype_value():
     assert (
         ServiceSubtype.EXTRACELLULAR_RECORDING_ARRAY_BUILD.value

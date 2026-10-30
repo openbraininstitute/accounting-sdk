@@ -41,6 +41,10 @@ class ServiceSubtype(HyphenStrEnum):
     ML_LLM = auto()
     # `notebook-service`: MCP sandbox session
     MCP = auto()
+    # Autonomous researcher agent (AWS Bedrock AgentCore Runtime), billed
+    # oneshot by credits (count = credits, via that agent's own weighted
+    # conversion of input/output/cache-read/cache-write token usage)
+    RESEARCH_AGENT = auto()
     ML_RAG = auto()
     ML_RETRIEVAL = auto()
     NEURON_MESH_SKELETONIZATION = auto()
