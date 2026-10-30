@@ -16,8 +16,7 @@ from obp_accounting_sdk.utils import (
 
 def test_get_current_timestamp():
     """Test get_current_timestamp returns current time as string."""
-    with patch("time.time", return_value=1234567890):
-        assert get_current_timestamp() == "1234567890"
+    assert get_current_timestamp(clock=lambda: 1234567890) == "1234567890"
 
 
 class TestAsyncPeriodicTaskManager:
