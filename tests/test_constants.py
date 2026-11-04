@@ -14,3 +14,7 @@ def test_extracellular_recording_array_build_service_subtype_value():
         ServiceSubtype.EXTRACELLULAR_RECORDING_ARRAY_BUILD.value
         == "extracellular-recording-array-build"
     )
+
+
+def test_nest_circuit_simulation_service_subtype_value():
+    assert ServiceSubtype.NEST_CIRCUIT_SIMULATION.value == "nest-circuit-simulation"
