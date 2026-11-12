@@ -18,3 +18,9 @@ def test_extracellular_recording_array_build_service_subtype_value():
 
 def test_nest_circuit_simulation_service_subtype_value():
     assert ServiceSubtype.NEST_CIRCUIT_SIMULATION.value == "nest-circuit-simulation"
+
+
+def test_circuit_simplification_service_subtype_values():
+    assert ServiceSubtype.CIRCUIT_SIMPLIFICATION_SMALL.value == "circuit-simplification-small"
+    assert ServiceSubtype.CIRCUIT_SIMPLIFICATION_MEDIUM.value == "circuit-simplification-medium"
+    assert ServiceSubtype.CIRCUIT_SIMPLIFICATION_LARGE.value == "circuit-simplification-large"
